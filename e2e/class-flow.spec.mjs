@@ -187,6 +187,10 @@ test('student joins with PIN, reconnects, gets locked and unlocked, then leaves'
 
     await test.step('internet lock via the helper (dry-run): lock, tamper is repaired and reported, release', async () => {
       await expect(student.locator('[data-e2e="netlock-setup"]')).toBeHidden();   // helper "installed" (token file present)
+      // exceptions: a host name (resolved on the student) and a network, plus one invalid entry that must be ignored
+      await teacher.locator('[data-e2e="netlock-exceptions"]').locator('xpath=ancestor::details/summary').click();
+      await teacher.locator('[data-e2e="netlock-exceptions"]').fill('localhost\n203.0.113.0/24\n10.0.0.0/99');
+      await teacher.locator('[data-e2e="netlock-exceptions"]').blur();
       await teacher.locator('[data-e2e="netlock-end"]').selectOption('50');
       await teacher.locator('[data-e2e="netlock-toggle"]').click();
       await teacher.locator('.swal2-confirm').click();
@@ -197,6 +201,9 @@ test('student joins with PIN, reconnects, gets locked and unlocked, then leaves'
       const st = await helper('/v1/status');
       expect(st.locked).toBe(true);
       expect(st.allow.some((a) => /\/\d+$/.test(a) && !a.endsWith('/32'))).toBe(true);   // own subnet
+      expect(st.allow).toContain('127.0.0.1/32');     // "localhost" resolved
+      expect(st.allow).toContain('203.0.113.0/24');   // network exception
+      expect(st.allow.join(',')).not.toContain('/99');
       const minutesLeft = (st.until - Date.now()) / 60000;
       expect(minutesLeft).toBeGreaterThan(53);   // 50 min + 5 min buffer without contact
       expect(minutesLeft).toBeLessThan(56);

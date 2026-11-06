@@ -26,7 +26,7 @@ import { app } from 'electron';
 import log from 'electron-log';
 import { APP_CATALOG, BUILTIN_TEMPLATES } from '../../../../shared/appCatalog.js';
 
-const EMPTY = { templates: [], customEntries: [] };
+const EMPTY = { templates: [], customEntries: [], netExceptions: [] };
 
 class AppLockStore {
     constructor() {
@@ -41,7 +41,7 @@ class AppLockStore {
         if (this.data) return this.data;
         try {
             const parsed = JSON.parse(fs.readFileSync(this.file(), 'utf8'));
-            this.data = { templates: parsed.templates || [], customEntries: parsed.customEntries || [] };
+            this.data = { templates: parsed.templates || [], customEntries: parsed.customEntries || [], netExceptions: parsed.netExceptions || [] };
         } catch {
             this.data = structuredClone(EMPTY);
         }
@@ -64,6 +64,7 @@ class AppLockStore {
             catalog: APP_CATALOG,
             customEntries: data.customEntries,
             templates: [...BUILTIN_TEMPLATES, ...data.templates],
+            netExceptions: data.netExceptions,
         };
     }
 
@@ -81,6 +82,14 @@ class AppLockStore {
         }
         this.save();
         return { status: 'success', template: existing || data.templates[data.templates.length - 1] };
+    }
+
+    /** Internet-lock exceptions (license servers, network drives): networks, IPs or host names. */
+    saveNetExceptions(list) {
+        const data = this.load();
+        data.netExceptions = [...new Set((list || []).map((e) => String(e).trim()).filter(Boolean))].slice(0, 50);
+        this.save();
+        return { status: 'success', netExceptions: data.netExceptions };
     }
 
     deleteTemplate(id) {

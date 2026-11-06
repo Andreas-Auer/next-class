@@ -187,6 +187,7 @@ class IpcHandler {
         ipcMain.handle('applock-save-template', (_e, tpl) => AppLockStore.saveTemplate(tpl || {}));
         ipcMain.handle('applock-delete-template', (_e, id) => AppLockStore.deleteTemplate(id));
         ipcMain.handle('applock-delete-custom', (_e, id) => AppLockStore.deleteCustomEntry(id));
+        ipcMain.handle('netlock-save-exceptions', (_e, list) => AppLockStore.saveNetExceptions(list));
 
         /** Take over a program from a student's list of running programs as a custom entry. */
         ipcMain.handle('applock-add-running', (_e, { app, platform } = {}) => {

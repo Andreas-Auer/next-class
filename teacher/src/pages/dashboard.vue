@@ -81,6 +81,13 @@
                     {{ netlock.active ? $t('netlock.lift') : $t('netlock.activate') }}
                 </button>
                 <div v-if="netlock.active" class="small mt-1 text-warning" data-e2e="netlock-until">{{ $t('netlock.until', { time: formatTime(netlock.until) }) }}</div>
+                <details class="small mt-2">
+                    <summary>{{ $t('netlock.exceptions', { n: netExceptionList.length }) }}</summary>
+                    <textarea class="form-control form-control-sm mt-1" rows="3" v-model="netExceptionsText" data-e2e="netlock-exceptions"
+                              :placeholder="$t('netlock.exceptionsplaceholder')" @change="saveNetExceptions"></textarea>
+                    <div class="text-secondary mt-1">{{ $t('netlock.exceptionshint') }}</div>
+                    <div v-if="invalidExceptions.length" class="text-danger mt-1">{{ $t('netlock.exceptionsinvalid', { list: invalidExceptions.join(', ') }) }}</div>
+                </details>
             </div>
 
             <!-- program lock -->
@@ -221,6 +228,7 @@ export default {
             netlock: { active: false },
             netEndMode: '50',
             netEndTime: '',
+            netExceptionsText: '',
             applockData: { catalog: [], customEntries: [], templates: [] },
             selectedTemplateId: '',
             allowedIds: [],
@@ -235,6 +243,17 @@ export default {
     },
     computed: {
         onlineCount() { return this.students.filter((s) => s.online).length },
+        netExceptionList() {
+            return this.netExceptionsText.split(/[\n,;]+/).map((e) => e.trim()).filter(Boolean)
+        },
+        invalidExceptions() {
+            const ip = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/
+            return this.netExceptionList.filter((e) => {
+                const [addr, bits] = e.split('/')
+                if (ip.test(addr)) return bits !== undefined && !(Number(bits) >= 8 && Number(bits) <= 32 && /^\d+$/.test(bits))
+                return !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(e) && e !== 'localhost'
+            })
+        },
         runningStudent() { return this.students.find((s) => s.clientname === this.runningAppsOf) || null },
         sortedStudents() {
             if (!this.sortByIdle) return this.students
@@ -282,6 +301,13 @@ export default {
             d.setHours(h, m, 0, 0)
             return d.getTime()
         },
+        async saveNetExceptions() {
+            await window.ipcRenderer.invoke('netlock-save-exceptions', [...this.netExceptionList])
+            if (this.netlock.active) {   // apply to the running lock right away
+                const r = await window.ipcRenderer.invoke('setNetLock', { servername: this.servername, active: true, until: this.netlock.until, extraAllow: [...this.netExceptionList] })
+                if (r.status === 'success') this.netlock = r.netlock
+            }
+        },
         async toggleNetLock() {
             if (this.netlock.active) {
                 const r = await window.ipcRenderer.invoke('setNetLock', { servername: this.servername, active: false })
@@ -300,7 +326,7 @@ export default {
                 cancelButtonText: this.$t('general.cancel'),
             })
             if (!confirm.isConfirmed) return
-            const r = await window.ipcRenderer.invoke('setNetLock', { servername: this.servername, active: true, until: capped })
+            const r = await window.ipcRenderer.invoke('setNetLock', { servername: this.servername, active: true, until: capped, extraAllow: [...this.netExceptionList] })
             if (r.status === 'success') this.netlock = r.netlock
             else this.$swal.fire({ title: this.$t('general.error'), text: r.message, icon: 'error' })
         },
@@ -322,6 +348,7 @@ export default {
         // ---- program lock -----------------------------------------------------
         async loadAppLockData() {
             this.applockData = await window.ipcRenderer.invoke('applock-overview')
+            this.netExceptionsText = (this.applockData.netExceptions || []).join('\n')
         },
         applyTemplate() {
             const tpl = this.applockData.templates.find((t) => t.id === this.selectedTemplateId)

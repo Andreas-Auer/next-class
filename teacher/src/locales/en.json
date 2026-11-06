@@ -119,7 +119,11 @@
       "firewall-disabled": "Firewall switched off – restored",
       "check-failed": "Firewall check failed"
     },
-    "endlabel": "Lock until"
+    "endlabel": "Lock until",
+    "exceptions": "Exceptions ({n})",
+    "exceptionsplaceholder": "e.g. license.school.at\n10.10.5.0/24",
+    "exceptionshint": "One per line: license servers, network drives in other networks – as name, IP or network (e.g. 10.10.5.0/24). Cloud services with many changing addresses do not work reliably.",
+    "exceptionsinvalid": "Invalid, ignored: {list}"
   },
   "events": {
     "title": "Events",

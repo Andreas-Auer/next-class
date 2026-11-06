@@ -119,7 +119,11 @@
       "firewall-disabled": "Firewall ausgeschaltet – wiederhergestellt",
       "check-failed": "Firewall-Prüfung fehlgeschlagen"
     },
-    "endlabel": "Sperren bis"
+    "endlabel": "Sperren bis",
+    "exceptions": "Ausnahmen ({n})",
+    "exceptionsplaceholder": "z. B. lizenz.schule.at\n10.10.5.0/24",
+    "exceptionshint": "Eine pro Zeile: Lizenzserver, Netzlaufwerke in anderen Netzen – als Name, IP oder Netz (z. B. 10.10.5.0/24). Cloud-Dienste mit vielen wechselnden Adressen funktionieren nicht zuverlässig.",
+    "exceptionsinvalid": "Ungültig, wird ignoriert: {list}"
   },
   "events": {
     "title": "Ereignisse",

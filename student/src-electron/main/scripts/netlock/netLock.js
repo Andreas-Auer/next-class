@@ -31,10 +31,10 @@ import dns from 'dns';
 import net from 'net';
 import log from 'electron-log';
 import { helperLock, helperUnlock, helperStatus, isInstalled, installHelper } from './helperClient.js';
+import { resolveExceptions } from './netExceptions.js';
 
 const STATUS_REFRESH_MS = 5000;
 const NO_CONTACT_GRACE_MS = 5 * 60 * 1000;   // without contact to the teacher the lock lasts until end time + 5 min
-
 export class NetLock {
     constructor() {
         this.policy = { active: false };
@@ -88,7 +88,7 @@ export class NetLock {
                 if (!this.installed) { this.state = 'notinstalled'; return; }
                 const req = {
                     until: next.until + NO_CONTACT_GRACE_MS,   // with contact the teacher lifts it exactly at the end time
-                    allow: NetLock.allowedNetworks(ctx.hostip, ctx.teacherIp, next.extraAllow),
+                    allow: NetLock.allowedNetworks(ctx.hostip, ctx.teacherIp, await resolveExceptions(next.extraAllow)),
                     dns: NetLock.dnsServers(),
                     sessionId: next.policyId,
                 };
