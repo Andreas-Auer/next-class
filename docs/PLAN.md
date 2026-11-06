@@ -17,4 +17,4 @@ Jeder Schritt bekommt einen eigenen Branch (`step-N-…`) und eine Testanleitung
 | 11 | Ausnahmen für die Internetsperre (Lizenzserver, Netzlaufwerke: Name, IP oder Netz) | erledigt (`step-11-exceptions`) |
 | 12 | Co-Lehrkräfte: Beitritt mit Lehrer-Code + Bestätigung, gleichberechtigte Steuerung über den Host, Zustand synchron | erledigt (`step-12-coteachers`) |
 | 13 | Übergabe und Übernahme bei Host-Ausfall | offen |
-| 14 | CI-Builds (unsigniert) und Kurzanleitung auf Deutsch | offen |
+| 14 | CI (Tests + unsignierte Installer für Windows, macOS, Linux; Release bei Versions-Tag) und Kurzanleitung | erledigt (`step-14-ci`) |

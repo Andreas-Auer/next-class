@@ -11,6 +11,8 @@ Next-Class hilft Lehrkräften, Ablenkung im Unterricht mit Fachsoftware (z. B. A
 - mehrere Lehrkräfte gleichzeitig (Teamteaching)
 - automatische Freigabe zur eingestellten Endzeit
 
+> **Anleitung für Lehrkräfte und Schüler:** [docs/ANLEITUNG.md](docs/ANLEITUNG.md)
+>
 > Status: frühe Entwicklung. Der aktuelle Stand und die nächsten Schritte stehen in [docs/PLAN.md](docs/PLAN.md),
 > die getroffenen Entscheidungen in [docs/ENTSCHEIDUNGEN.md](docs/ENTSCHEIDUNGEN.md).
 

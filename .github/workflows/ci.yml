@@ -1,0 +1,158 @@
+# Next-Class CI: tests and unsigned installers on every push; a GitHub release for version tags (v*).
+#
+# Optional repository secrets (Settings -> Secrets and variables -> Actions):
+#   API_SECRET, CONNECTION_SECRET   replace the placeholder app secrets in the builds
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  GO_VERSION: '1.23'
+
+jobs:
+  unit:
+    name: Unit tests (JavaScript + Go)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: helper/go.sum
+      - run: npm run install:dependencies
+      - run: npm test
+
+  e2e:
+    name: End-to-end tests (macOS)
+    runs-on: macos-14
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: helper/go.sum
+      - run: npm run install:dependencies
+      - run: npm run test:e2e
+        env:
+          CI: 'true'
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: test-results/
+          retention-days: 7
+
+  build:
+    name: Installers (${{ matrix.name }})
+    needs: unit
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            builds: build:win:all
+          - name: macOS
+            os: macos-14
+            builds: build:mac:arm64 build:mac:x64
+          - name: Linux
+            os: ubuntu-latest
+            builds: build:linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: helper/go.sum
+
+      - name: Use real app secrets when configured
+        shell: bash
+        env:
+          API_SECRET: ${{ secrets.API_SECRET }}
+          CONNECTION_SECRET: ${{ secrets.CONNECTION_SECRET }}
+        run: |
+          if [ -n "$API_SECRET" ] && [ -n "$CONNECTION_SECRET" ]; then
+            for f in student/.env.production teacher/.env.production; do
+              sed -i.bak -e "s|^API_SECRET=.*|API_SECRET=$API_SECRET|" -e "s|^CONNECTION_SECRET=.*|CONNECTION_SECRET=$CONNECTION_SECRET|" "$f" && rm "$f.bak"
+            done
+            echo "app secrets injected"
+          else
+            echo "::notice::No API_SECRET/CONNECTION_SECRET secrets configured - building with the placeholder secrets"
+          fi
+
+      - run: npm run install:dependencies
+      - run: npm run build:helper        # all platforms: the macOS job packages arm64 and x64
+
+      - name: Build student and teacher installers
+        shell: bash
+        run: |
+          for app in student teacher; do
+            for script in ${{ matrix.builds }}; do
+              echo "::group::$app $script"
+              npm --prefix "$app" run "$script"
+              echo "::endgroup::"
+            done
+          done
+
+      - name: Collect installers
+        shell: bash
+        run: |
+          mkdir -p out
+          for app in student teacher; do
+            find "$app/dist/electron/Packaged" -maxdepth 1 -type f \( -name '*.msi' -o -name '*.exe' -o -name '*.zip' -o -name '*.dmg' -o -name '*.AppImage' \) -exec cp {} out/ \;
+          done
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: next-class-${{ matrix.name }}
+          path: out/*
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    name: GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, e2e]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create release with all installers
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "Next-Class ${GITHUB_REF_NAME}" \
+            --notes "Unsignierte Testversion. Installationshinweise: docs/ANLEITUNG.md" \
+            --prerelease
