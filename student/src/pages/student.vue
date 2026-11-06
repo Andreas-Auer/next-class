@@ -63,6 +63,15 @@
                     <p v-if="clientinfo.screenPermission && clientinfo.screenPermission !== 'granted'" class="alert alert-warning mt-2 mb-1">
                         {{ $t('student.screenpermission') }}
                     </p>
+                    <div v-if="clientinfo.applock?.state === 'grace'" class="alert alert-warning mt-2" data-e2e="applock-grace">
+                        <strong>{{ $t('student.applockgrace', { s: graceCountdown }) }}</strong><br>
+                        {{ $t('student.applocksave') }}<br>
+                        <span class="small">{{ $t('student.applockallowed') }} {{ allowedList }}</span>
+                    </div>
+                    <div v-else-if="clientinfo.applock?.state === 'active'" class="alert alert-dark mt-2" data-e2e="applock-active">
+                        <strong>{{ $t('student.applockactive') }}</strong><br>
+                        <span class="small">{{ $t('student.applockallowed') }} {{ allowedList }}</span>
+                    </div>
                     <p class="text-secondary small mt-3 mb-3">{{ $t('student.hidehint') }}</p>
                     <button class="btn btn-danger btn-sm" data-e2e="leave" @click="leaveSession">{{ $t('student.leave') }}</button>
                 </div>
@@ -147,6 +156,9 @@ export default {
             emptyRounds: 0,
             interfaceDialogOpen: false,
             fetchTimer: null,
+            fetchedAt: Date.now(),
+            nowTick: Date.now(),
+            tickTimer: null,
         }
     },
 
@@ -154,16 +166,28 @@ export default {
         inactiveLocale() { return this.$i18n.locale === 'de' ? 'en' : 'de' },
         hostipText() { return this.hostip?.hostip || '' },
         canSelectInterface() { return !this.token && this.hostip?.availableInterfaces?.length > 1 },
+        allowedList() {
+            const labels = this.clientinfo.applock?.allowedLabels || []
+            return labels.length ? labels.join(', ') : this.$t('student.applocknone')
+        },
+        graceCountdown() {
+            // graceRemaining comes with each poll (3 s); count down locally in between
+            const remaining = (this.clientinfo.applock?.graceRemaining || 0) - Math.floor((this.nowTick - this.fetchedAt) / 1000)
+            return Math.max(0, remaining)
+        },
     },
 
     async mounted() {
         this.username = localStorage.getItem('next-class-name') || ''
         await this.fetchInfo()
         this.fetchTimer = setInterval(() => this.fetchInfo(), FETCH_INTERVAL_MS)
+        this.tickTimer = setInterval(() => { this.nowTick = Date.now() }, 1000)
+        window.ipcRenderer.on('applock-state', () => this.fetchInfo())   // show the warning right away
     },
 
     beforeUnmount() {
         clearInterval(this.fetchTimer)
+        clearInterval(this.tickTimer)
     },
 
     methods: {
@@ -196,6 +220,7 @@ export default {
                 return
             }
             this.clientinfo = info.clientinfo
+            this.fetchedAt = Date.now()
             this.token = info.clientinfo.token
             if (this.token && info.clientinfo.name) this.username = info.clientinfo.name
 

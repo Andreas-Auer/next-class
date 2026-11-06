@@ -149,6 +149,8 @@ router.post('/update', (req, res) => {
     if (typeof ci.multiMonitor === 'boolean') student.multiMonitor = ci.multiMonitor;
     if (typeof ci.screenPermission === 'string') student.screenPermission = ci.screenPermission;
     student.screenCaptureFailed = !!ci.screenCaptureError;
+    if (typeof ci.platform === 'string') student.platform = ci.platform;
+    if (ci.applock && typeof ci.applock === 'object') student.applock = ci.applock;
     // inactivity: student sends a duration (not a timestamp) so clock differences between devices do not matter
     student.unchangedSince = Number.isFinite(ci.screenUnchangedSeconds) ? student.timestamp - ci.screenUnchangedSeconds * 1000 : null;
     if (!ci.screenshotinterval) student.imageurl = false;
@@ -166,6 +168,7 @@ router.post('/update', (req, res) => {
         serverstatus: {
             screenslocked: !!session.serverstatus.screenslocked,
             idlethreshold: session.serverstatus.idlethreshold,
+            applock: session.serverstatus.applock || { active: false },
             screenshotinterval: session.serverstatus.screenshotinterval,
         },
         studentstatus,

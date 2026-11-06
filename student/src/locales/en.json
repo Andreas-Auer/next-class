@@ -55,7 +55,12 @@
       "VERSION_MISMATCH": "The student app does not match the teacher app version."
     },
     "reconnecting": "Connection to “{name}” lost – Next-Class reconnects automatically …",
-    "joinonly": "Join only this one"
+    "joinonly": "Join only this one",
+    "applockgrace": "Program lock in {s} seconds!",
+    "applocksave": "Please save now and close all programs that are not allowed – otherwise they will be closed automatically.",
+    "applockactive": "Program lock active",
+    "applockallowed": "Allowed:",
+    "applocknone": "system programs only"
   },
   "general": {
     "ok": "OK",

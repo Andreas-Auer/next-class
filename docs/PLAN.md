@@ -8,7 +8,7 @@ Jeder Schritt bekommt einen eigenen Branch (`step-N-…`) und eine Testanleitung
 | 2 | Entschlacken: Prüfungsmodi, QEMU, LanguageTool, PDF/Signatur, BiP, Moodle, MSAL, SEB, iOS und Kiosk entfernen; Schüler-App als normales Fenster | erledigt (`step-2-slim`) |
 | 3 | Unterrichtseinheit: Beitritt nur mit Name + PIN, automatisches Finden, manuelle IP, automatisches Wiederverbinden, Status verbunden / getrennt seit | erledigt (`step-3-join`) |
 | 4 | Inaktivitäts-Anzeige: Bildschirm unverändert, Zähler ab 2 min | erledigt (`step-4-idle`) |
-| 5 | Programmsperre mit Freigabeliste, Vorlagen, Katalog und Vorwarnung (ohne Admin-Rechte) | offen |
+| 5 | Programmsperre mit Freigabeliste, Vorlagen, Katalog und Vorwarnung (ohne Admin-Rechte) | erledigt (`step-5-applock`); Windows/Linux noch nicht auf echten Geräten getestet |
 | 6 | Hilfsdienst-Gerüst Windows (Go, Installer, IPC, Aufräumen beim Booten, Lease) | offen |
 | 7 | Internetsperre Windows | offen |
 | 8 | Watchdog und Ereignismeldungen (Regel entfernt, App beendet, gesperrtes Programm, Verbindung weg) | offen |

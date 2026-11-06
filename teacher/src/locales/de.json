@@ -63,5 +63,38 @@
     "invalidname": "Ungültiger Name für die Unterrichtseinheit.",
     "serverexists": "Diese Unterrichtseinheit läuft bereits.",
     "serverexistsLAN": "Eine andere Lehrkraft verwendet diesen Namen bereits im Netzwerk."
+  },
+  "applock": {
+    "title": "Programmsperre",
+    "notemplate": "– Vorlage wählen –",
+    "allowedcount": "{n} Programme erlaubt",
+    "modekill": "Nicht erlaubte beenden",
+    "modereport": "Nur melden",
+    "activate": "Programmsperre aktivieren",
+    "lift": "Programmsperre aufheben",
+    "activesince": "aktiv seit {time}",
+    "pickertitle": "Erlaubte Programme",
+    "pickerhint": "Häkchen setzen = Programm darf laufen. Systemprogramme (Explorer, Finder, …) und Next-Class sind immer erlaubt. Fehlt ein Programm, kannst du es über ☰ bei einer Schülerin / einem Schüler aus den laufenden Programmen übernehmen.",
+    "saveastemplate": "Als Vorlage speichern",
+    "templatename": "Name der Vorlage",
+    "selectedcount": "{n} ausgewählt",
+    "apply": "Übernehmen",
+    "ownprograms": "Eigene Programme",
+    "deletecustom": "Eigenes Programm löschen",
+    "runningapps": "Laufende Programme",
+    "runningof": "Laufende Programme: {name}",
+    "runninghint": "Programme mit Fenster auf diesem Gerät. „Erlauben“ fügt das Programm zur Freigabeliste hinzu (und speichert es als eigenes Programm).",
+    "norunning": "Noch keine Liste empfangen.",
+    "allow": "Erlauben",
+    "violations": "Meldungen",
+    "badgegrace": "Sperre in {s} s",
+    "badgeactive": "Programmsperre",
+    "action": {
+      "reported": "gemeldet",
+      "closed": "geschlossen",
+      "killed": "beendet"
+    },
+    "confirmkill": "Alle nicht erlaubten Programme werden nach 30 Sekunden Vorwarnung geschlossen. Erlaubt: {n} Programme.",
+    "confirmreport": "Nicht erlaubte Programme werden nach 30 Sekunden nur gemeldet, aber nicht geschlossen. Erlaubt: {n} Programme."
   }
 }

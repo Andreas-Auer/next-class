@@ -23,6 +23,9 @@ import { gateway4sync } from '../../../../shared/defaultGateway.js';
 import MulticastServer from './multicastserver.js';
 import { STUDENT_OFFLINE_AFTER_MS } from '../../server/src/routes/server/control.js';
 import i18n from '../../../src/locales/locales.js';
+import crypto from 'crypto';
+import AppLockStore from './applockStore.js';
+import { resolveEntries, entryFromRunningApp } from '../../../../shared/appCatalog.js';
 
 const { t } = i18n.global;
 const SESSION_NAME_PATTERN = /^[a-z0-9äöüß][a-z0-9äöüß _.-]{0,39}$/;
@@ -64,6 +67,8 @@ class IpcHandler {
             multiMonitor: !!student.multiMonitor,
             screenPermission: student.screenPermission || 'unknown',
             screenCaptureFailed: !!student.screenCaptureFailed,
+            platform: student.platform || null,
+            applock: student.applock || null,
             unchangedSince: student.unchangedSince ?? null,
         };
     }
@@ -162,6 +167,45 @@ class IpcHandler {
                 session.studentList = session.studentList.filter((s) => s !== student);
             }
             return { status: 'success' };
+        });
+
+        // ---- program lock ------------------------------------------------------
+        ipcMain.handle('applock-overview', () => AppLockStore.overview());
+        ipcMain.handle('applock-save-template', (_e, tpl) => AppLockStore.saveTemplate(tpl || {}));
+        ipcMain.handle('applock-delete-template', (_e, id) => AppLockStore.deleteTemplate(id));
+        ipcMain.handle('applock-delete-custom', (_e, id) => AppLockStore.deleteCustomEntry(id));
+
+        /** Take over a program from a student's list of running programs as a custom entry. */
+        ipcMain.handle('applock-add-running', (_e, { app, platform } = {}) => {
+            if (!app || !platform) return { status: 'error' };
+            return AppLockStore.addCustomEntry(entryFromRunningApp(app, platform));
+        });
+
+        /**
+         * Start, change or lift the program lock of a session:
+         * { servername, active, mode: 'kill'|'report', allowedIds: [...], templateName, graceSeconds }
+         */
+        ipcMain.handle('setAppLock', (_e, payload = {}) => {
+            const session = this.session(payload.servername);
+            if (!session) return { status: 'error', message: t('control.notfound') };
+            if (!payload.active) {
+                session.serverstatus.applock = { active: false };
+                log.info(`ipchandler @ setAppLock: ${payload.servername} -> lifted`);
+                return { status: 'success', applock: session.serverstatus.applock };
+            }
+            const allowedIds = [...new Set(payload.allowedIds || [])];
+            session.serverstatus.applock = {
+                active: true,
+                policyId: crypto.randomUUID(),   // a new id restarts the warning period on the students
+                mode: payload.mode === 'report' ? 'report' : 'kill',
+                graceSeconds: Number.isFinite(payload.graceSeconds) ? payload.graceSeconds : Number(process.env.NEXT_CLASS_APPLOCK_GRACE ?? 30),
+                templateName: String(payload.templateName || ''),
+                allowedIds,
+                allowed: resolveEntries(allowedIds, AppLockStore.load().customEntries),
+                startedAt: Date.now(),
+            };
+            log.info(`ipchandler @ setAppLock: ${payload.servername} -> ${session.serverstatus.applock.mode}, ${allowedIds.length} programs allowed`);
+            return { status: 'success', applock: session.serverstatus.applock };
         });
 
         ipcMain.handle('checkhostip', () => this.checkHostIp());

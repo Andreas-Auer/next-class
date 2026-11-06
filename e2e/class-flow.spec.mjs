@@ -49,7 +49,11 @@ test('student joins with PIN, reconnects, gets locked and unlocked, then leaves'
   const sessionName = `e2e-${Date.now().toString().slice(-6)}`;
   const studentName = 'e2e-schueler';
   const profileRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'next-class-e2e-'));
-  const env = { ...process.env, DEBUG: '1', NXE_E2E_SERVER_API_PORT: serverApiPort };
+  const env = {
+    ...process.env, DEBUG: '1', NXE_E2E_SERVER_API_PORT: serverApiPort,
+    NEXT_CLASS_APPLOCK_GRACE: '4',                                            // short warning period for the test
+    NEXT_CLASS_APPLOCK_FILE: path.join(profileRoot, 'applock.json'),          // keep test templates out of the real profile
+  };
   let teacherApp;
   let studentApp;
 
@@ -124,6 +128,48 @@ test('student joins with PIN, reconnects, gets locked and unlocked, then leaves'
       await teacher.locator('[data-e2e="idle-threshold"]').selectOption('300');   // threshold 5 min -> badge disappears
       await expect(badge).toBeHidden({ timeout: 5_000 });
       await teacher.locator('[data-e2e="idle-threshold"]').selectOption('120');
+    });
+
+    await test.step('program lock: template + program taken over from the student, violations reported', async () => {
+      // simulated programs - nothing real is touched (unpackaged builds only report anyway)
+      const fakeApps = [
+        { pid: 900001, name: 'ARCHICAD', exe: 'ARCHICAD.exe', bundleId: 'com.graphisoft.ARCHICAD-64.27', appName: 'Archicad 27', windowed: true },
+        { pid: 900002, name: 'MyTool', exe: 'MyTool.exe', bundleId: 'at.htl.mytool', appName: 'MyTool', windowed: true },
+        { pid: 900003, name: 'Brave Browser', exe: 'brave.exe', bundleId: 'com.brave.Browser', appName: 'Brave Browser', windowed: true },
+        { pid: 900004, name: 'Discord', exe: 'Discord.exe', bundleId: 'com.hnc.Discord', appName: 'Discord', windowed: false },
+      ];
+      await student.evaluate((apps) => window.ipcRenderer.invoke('e2e-fake-apps', apps), fakeApps);
+
+      await teacher.locator('[data-e2e="applock-template"]').selectOption('builtin-cad');
+      await teacher.locator('[data-e2e="applock-pick"]').click();
+      await expect(teacher.locator('[data-e2e="app-archicad"]')).toBeChecked();
+      await expect(teacher.locator('[data-e2e="app-word"]')).not.toBeChecked();
+      await teacher.locator('[data-e2e="applock-picker-apply"]').click();
+
+      // take over "MyTool" from the student's running programs
+      await card().locator('[data-e2e="running-apps"]').click();
+      const allowMyTool = teacher.locator('[data-e2e="allow-MyTool"]');
+      await expect(allowMyTool).toBeVisible({ timeout: 25_000 });
+      await allowMyTool.click();
+      await teacher.locator('[data-e2e="running-apps-dialog"]').locator('.btn-close').click();
+
+      await teacher.locator('[data-e2e="applock-toggle"]').click();
+      await teacher.locator('.swal2-confirm').click();
+      await expect(student.locator('[data-e2e="applock-grace"]')).toBeVisible({ timeout: 10_000 });
+      await shot(student, '6-schueler-vorwarnung');
+      await expect(student.locator('[data-e2e="applock-active"]')).toBeVisible({ timeout: 15_000 });
+
+      await expect.poll(async () => {
+        const info = await student.evaluate(() => window.ipcRenderer.invoke('getinfoasync'));
+        return (info.clientinfo.applock?.violations || []).map((v) => v.name).sort().join(',');
+      }, { timeout: 15_000 }).toBe('Brave Browser,Discord');
+      await expect(card().locator('[data-e2e="badge-violation"]')).toContainText('gemeldet', { timeout: 15_000 });
+      await expect(card().locator('[data-e2e="badge-applock"]')).toBeVisible();
+      await shot(teacher, '7-lehrer-programmsperre');
+
+      await teacher.locator('[data-e2e="applock-toggle"]').click();   // lift
+      await expect(student.locator('[data-e2e="applock-active"]')).toBeHidden({ timeout: 15_000 });
+      await expect(card().locator('[data-e2e="badge-applock"]')).toBeHidden({ timeout: 15_000 });
     });
 
     await test.step('network dropout -> student reconnects automatically, teacher keeps one tile', async () => {

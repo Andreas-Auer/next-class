@@ -22,6 +22,7 @@ import { SchedulerService } from './schedulerservice.ts';
 import { syncClientDisplayInfo } from './displayInfo.js';
 import { examApiFetch, isCertificateError } from './examApiFetch.js';
 import { ScreenActivityTracker, SAMPLE_WIDTH, SAMPLE_HEIGHT, bgraToGray } from './screenActivity.js';
+import AppLock from './applock/appLock.js';
 
 const UPDATE_INTERVAL_MS = 5000;     // heartbeat to the teacher
 const MAX_LOST_HEARTBEATS = 5;       // ~25 s without contact -> registration is dropped locally
@@ -92,12 +93,18 @@ class CommHandler {
         this.updateScheduler.start();
         this.scheduleScreenshot();
         this.idleTimer = setInterval(() => this.sampleActivity(), IDLE_SAMPLE_INTERVAL_MS);
+        AppLock.onStateChange = (state) => {
+            if (state === 'grace') WindowHandler.showFromTray();   // the student must see the countdown
+            WindowHandler.mainWin()?.webContents.send('applock-state', state);
+        };
+        AppLock.start();
     }
 
     stop() {
         this.updateScheduler?.stop();
         clearTimeout(this.screenshotTimer);
         clearInterval(this.idleTimer);
+        AppLock.stop();
     }
 
     // ---- inactivity (screen unchanged) -------------------------------------
@@ -142,6 +149,8 @@ class CommHandler {
         syncClientDisplayInfo(ci);
         ci.screenPermission = this.screenPermissionStatus();
         if (ci.token) ci.screenUnchangedSeconds = this.activity.unchangedSeconds();   // fresh value with every heartbeat
+        AppLock.connected = !!ci.token;
+        ci.applock = AppLock.status();
 
         if (this.multicastClient.beaconsLost >= MAX_LOST_HEARTBEATS) {
             this.dropRegistration();
@@ -205,6 +214,8 @@ class CommHandler {
             return;
         }
 
+        AppLock.setPolicy(serverstatus.applock);
+
         if (serverstatus.screenslocked && !ci.screenlock) this.activateScreenlock();
         else if (!serverstatus.screenslocked && ci.screenlock) this.killScreenlock();
 
@@ -248,6 +259,7 @@ class CommHandler {
         ci.screenUnchangedSeconds = null;
         this.activity.reset();
         this.idleForced = false;
+        AppLock.clear();         // the program lock ends with the session
         this.killScreenlock();   // never leave a student locked without a teacher
     }
 

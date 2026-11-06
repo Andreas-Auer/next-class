@@ -54,7 +54,8 @@ class MulticastClient {
             screenshotinterval: 4000,   // milliseconds; 0 = live view disabled by the teacher
             displayCount: 1,
             multiMonitor: false,
-            version: config.version
+            version: config.version,
+            platform: process.platform
         }
     }
 

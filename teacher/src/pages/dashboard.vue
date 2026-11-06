@@ -62,6 +62,26 @@
                 <label for="sortidle" class="form-check-label">{{ $t('dashboard.sortidle') }}</label>
             </div>
 
+            <!-- program lock -->
+            <div class="applockbox mt-3 p-2" :class="{ active: applock.active }">
+                <div class="small fw-bold mb-1">{{ $t('applock.title') }}</div>
+                <select class="form-select form-select-sm mb-1" v-model="selectedTemplateId" data-e2e="applock-template" @change="applyTemplate">
+                    <option value="">{{ $t('applock.notemplate') }}</option>
+                    <option v-for="tpl in applockData.templates" :key="tpl.id" :value="tpl.id">{{ tpl.name }}</option>
+                </select>
+                <button class="btn btn-sm btn-outline-light w-100 mb-1 text-start" data-e2e="applock-pick" @click="pickerOpen = true">
+                    {{ $t('applock.allowedcount', { n: allowedIds.length }) }} …
+                </button>
+                <select class="form-select form-select-sm mb-2" v-model="applockMode" data-e2e="applock-mode" @change="applock.active && sendAppLock(true)">
+                    <option value="kill">{{ $t('applock.modekill') }}</option>
+                    <option value="report">{{ $t('applock.modereport') }}</option>
+                </select>
+                <button class="btn btn-sm w-100" :class="applock.active ? 'btn-warning' : 'btn-outline-warning'" data-e2e="applock-toggle" @click="toggleAppLock">
+                    {{ applock.active ? $t('applock.lift') : $t('applock.activate') }}
+                </button>
+                <div v-if="applock.active" class="small mt-1 text-warning">{{ $t('applock.activesince', { time: formatTime(applock.startedAt) }) }}</div>
+            </div>
+
             <div class="mt-auto small text-secondary">
                 {{ $t('dashboard.counts', { online: onlineCount, total: students.length }) }}
             </div>
@@ -85,6 +105,7 @@
                     <div class="card-body p-2">
                         <div class="d-flex align-items-center">
                             <strong class="text-truncate me-auto" :title="`${student.clientname} (${student.hostname})`">{{ student.clientname }}</strong>
+                            <button class="btn btn-sm btn-link p-0 ms-2" :title="$t('applock.runningapps')" data-e2e="running-apps" @click="runningAppsOf = student.clientname">☰</button>
                             <button class="btn btn-sm btn-link text-danger p-0 ms-2" :title="$t('dashboard.kick')" @click="kick(student)">✕</button>
                         </div>
                         <div class="d-flex flex-wrap gap-1 mt-1">
@@ -93,6 +114,11 @@
                             <span v-if="idleSeconds(student) !== null" class="badge idlebadge" data-e2e="badge-idle"
                                   :title="$t('dashboard.idlehint')">⏸ {{ formatDuration(idleSeconds(student)) }}</span>
                             <span v-if="student.online && student.screenlock" class="badge bg-warning text-dark" data-e2e="badge-locked">{{ $t('dashboard.locked') }}</span>
+                            <span v-if="student.online && student.applock?.state === 'grace'" class="badge bg-warning text-dark" data-e2e="badge-applock-grace">
+                                {{ $t('applock.badgegrace', { s: student.applock.graceRemaining }) }}</span>
+                            <span v-if="student.online && student.applock?.state === 'active'" class="badge bg-dark" data-e2e="badge-applock">{{ $t('applock.badgeactive') }}</span>
+                            <span v-if="student.online && recentViolation(student)" class="badge bg-danger text-wrap text-start" data-e2e="badge-violation"
+                                  :title="violationTooltip(student)">⚠ {{ recentViolation(student).name }} · {{ $t(`applock.action.${recentViolation(student).action}`) }}</span>
                             <span v-if="student.multiMonitor" class="badge bg-info text-dark">{{ $t('dashboard.multimonitor') }}</span>
                             <span v-if="student.online && (student.screenCaptureFailed || student.screenPermission === 'denied' || student.screenPermission === 'not-determined')"
                                   class="badge bg-danger" data-e2e="badge-nopermission" :title="$t('dashboard.nopermissionhint')">{{ $t('dashboard.nopermission') }}</span>
@@ -102,13 +128,39 @@
             </div>
         </div>
     </div>
+
+    <AppPicker v-if="pickerOpen" :catalog="applockData.catalog" :custom-entries="applockData.customEntries" :allowed-ids="allowedIds"
+               @close="pickerOpen = false" @apply="applyPicked" @save-template="saveTemplate" @delete-custom="deleteCustom" />
+
+    <!-- running programs of one student (take over into the allowlist) -->
+    <div v-if="runningStudent" class="nc-overlay" @click.self="runningAppsOf = null">
+        <div class="card shadow" style="width: min(640px, 92vw); max-height: 80vh;" data-e2e="running-apps-dialog">
+            <div class="card-header d-flex"><strong class="me-auto">{{ $t('applock.runningof', { name: runningStudent.clientname }) }}</strong>
+                <button class="btn-close" @click="runningAppsOf = null"></button></div>
+            <div class="card-body overflow-auto">
+                <p class="small text-secondary">{{ $t('applock.runninghint') }}</p>
+                <div v-if="!runningStudent.applock?.runningApps?.length" class="text-secondary">{{ $t('applock.norunning') }}</div>
+                <div v-for="app in runningStudent.applock?.runningApps || []" :key="app.bundleId || app.exe || app.name" class="d-flex align-items-center border-bottom py-1">
+                    <span class="me-auto">{{ app.appName || app.title || app.name }} <span class="text-secondary small">{{ app.bundleId || app.exe || app.name }}</span></span>
+                    <button class="btn btn-sm btn-outline-primary" :data-e2e="`allow-${app.name}`" @click="allowRunning(app, runningStudent.platform)">{{ $t('applock.allow') }}</button>
+                </div>
+                <div v-if="runningStudent.applock?.violations?.length" class="mt-3">
+                    <div class="fw-bold small">{{ $t('applock.violations') }}</div>
+                    <div v-for="v in runningStudent.applock.violations" :key="v.at + v.name" class="small">{{ formatTime(v.at) }} · {{ v.name }} · {{ $t(`applock.action.${v.action}`) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 </template>
 
 <script>
+import AppPicker from '../components/AppPicker.vue'
 const POLL_MS = 2000
+const VIOLATION_SHOW_MS = 5 * 60 * 1000   // a violation badge stays visible for 5 minutes
 
 export default {
+    components: { AppPicker },
     data() {
         return {
             servername: this.$route.params.servername,
@@ -120,12 +172,20 @@ export default {
             sortByIdle: false,
             now: Date.now(),
             students: [],
+            applock: { active: false },
+            applockData: { catalog: [], customEntries: [], templates: [] },
+            selectedTemplateId: '',
+            allowedIds: [],
+            applockMode: 'kill',
+            pickerOpen: false,
+            runningAppsOf: null,
             pollTimer: null,
             clockTimer: null,
         }
     },
     computed: {
         onlineCount() { return this.students.filter((s) => s.online).length },
+        runningStudent() { return this.students.find((s) => s.clientname === this.runningAppsOf) || null },
         sortedStudents() {
             if (!this.sortByIdle) return this.students
             return [...this.students].sort((a, b) => (this.idleSeconds(b) ?? -1) - (this.idleSeconds(a) ?? -1))
@@ -139,6 +199,9 @@ export default {
         this.screenslocked = !!info.serverstatus?.screenslocked
         this.screenshotinterval = info.serverstatus?.screenshotinterval ?? 4
         this.idlethreshold = info.serverstatus?.idlethreshold ?? 120
+        this.applock = info.serverstatus?.applock || { active: false }
+        if (this.applock.active) { this.allowedIds = [...(this.applock.allowedIds || [])]; this.applockMode = this.applock.mode }
+        await this.loadAppLockData()
         this.clockTimer = setInterval(() => { this.now = Date.now() }, 1000)   // the idle counter ticks every second
         await this.fetchStudents()
         this.pollTimer = setInterval(() => this.fetchStudents(), POLL_MS)
@@ -158,6 +221,69 @@ export default {
             const m = Math.floor(seconds / 60)
             const s = String(seconds % 60).padStart(2, '0')
             return m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}:${s}` : `${m}:${s}`
+        },
+        // ---- program lock -----------------------------------------------------
+        async loadAppLockData() {
+            this.applockData = await window.ipcRenderer.invoke('applock-overview')
+        },
+        applyTemplate() {
+            const tpl = this.applockData.templates.find((t) => t.id === this.selectedTemplateId)
+            if (tpl) this.allowedIds = [...tpl.allowed]
+            if (this.applock.active) this.sendAppLock(true)
+        },
+        applyPicked(ids) {
+            this.allowedIds = ids
+            this.pickerOpen = false
+            if (this.applock.active) this.sendAppLock(true)
+        },
+        async saveTemplate(tpl) {
+            const result = await window.ipcRenderer.invoke('applock-save-template', tpl)
+            await this.loadAppLockData()
+            if (result.status === 'success') this.selectedTemplateId = result.template.id
+        },
+        async deleteCustom(id) {
+            await window.ipcRenderer.invoke('applock-delete-custom', id)
+            this.allowedIds = this.allowedIds.filter((a) => a !== id)
+            await this.loadAppLockData()
+        },
+        async allowRunning(app, platform) {
+            const result = await window.ipcRenderer.invoke('applock-add-running', { app: JSON.parse(JSON.stringify(app)), platform })
+            if (result.status !== 'success') return
+            await this.loadAppLockData()
+            if (!this.allowedIds.includes(result.entry.id)) this.allowedIds = [...this.allowedIds, result.entry.id]
+            if (this.applock.active) this.sendAppLock(true)
+        },
+        async toggleAppLock() {
+            if (this.applock.active) {
+                await this.sendAppLock(false)
+                return
+            }
+            const tplName = this.applockData.templates.find((t) => t.id === this.selectedTemplateId)?.name || ''
+            const confirm = await this.$swal.fire({
+                title: this.$t('applock.activate'),
+                html: this.$t(this.applockMode === 'kill' ? 'applock.confirmkill' : 'applock.confirmreport', { n: this.allowedIds.length })
+                    + (tplName ? `<br><b>${tplName.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])}</b>` : ''),
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: this.$t('applock.activate'),
+                cancelButtonText: this.$t('general.cancel'),
+            })
+            if (confirm.isConfirmed) await this.sendAppLock(true)
+        },
+        async sendAppLock(active) {
+            const tplName = this.applockData.templates.find((t) => t.id === this.selectedTemplateId)?.name || ''
+            const result = await window.ipcRenderer.invoke('setAppLock', {
+                servername: this.servername, active, mode: this.applockMode, allowedIds: [...this.allowedIds], templateName: tplName,
+            })
+            if (result.status === 'success') this.applock = result.applock
+        },
+        recentViolation(student) {
+            const v = student.applock?.violations?.[0]
+            return v && this.now - v.at < VIOLATION_SHOW_MS ? v : null
+        },
+        violationTooltip(student) {
+            return (student.applock?.violations || []).slice(0, 8)
+                .map((v) => `${this.formatTime(v.at)} ${v.name} (${this.$t(`applock.action.${v.action}`)})`).join('\n')
         },
         saveIdleThreshold() {
             this.setStatus({ idlethreshold: this.idlethreshold })
@@ -231,6 +357,9 @@ export default {
 .studentwidget { width: 260px; }
 .studentwidget.offline { opacity: 0.6; }
 .studentwidget.idle { outline: 3px solid #fd7e14; }
+.applockbox { border: 1px solid #495057; border-radius: 4px; }
+.applockbox.active { border-color: #ffc107; }
+.nc-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 1050; display: flex; align-items: center; justify-content: center; }
 .idlebadge { background-color: #fd7e14; color: #fff; font-variant-numeric: tabular-nums; }
 .thumb { height: 150px; background: #e9ecef; cursor: zoom-in; border-top-left-radius: 4px; border-top-right-radius: 4px; overflow: hidden; }
 </style>

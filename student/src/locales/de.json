@@ -55,7 +55,12 @@
       "VERSION_MISMATCH": "Die Schüler-App passt nicht zur Version der Lehrer-App."
     },
     "reconnecting": "Verbindung zu „{name}“ unterbrochen – Next-Class verbindet automatisch neu …",
-    "joinonly": "Nur dieser beitreten"
+    "joinonly": "Nur dieser beitreten",
+    "applockgrace": "Programmsperre in {s} Sekunden!",
+    "applocksave": "Bitte jetzt speichern und alle Programme schließen, die nicht erlaubt sind – sie werden sonst automatisch beendet.",
+    "applockactive": "Programmsperre aktiv",
+    "applockallowed": "Erlaubt:",
+    "applocknone": "nur Systemprogramme"
   },
   "general": {
     "ok": "OK",

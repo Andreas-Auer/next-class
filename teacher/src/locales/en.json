@@ -63,5 +63,38 @@
     "invalidname": "Invalid session name.",
     "serverexists": "This session is already running.",
     "serverexistsLAN": "Another teacher already uses this name on the network."
+  },
+  "applock": {
+    "title": "Program lock",
+    "notemplate": "– choose template –",
+    "allowedcount": "{n} programs allowed",
+    "modekill": "Close programs not allowed",
+    "modereport": "Report only",
+    "activate": "Activate program lock",
+    "lift": "Lift program lock",
+    "activesince": "active since {time}",
+    "pickertitle": "Allowed programs",
+    "pickerhint": "Ticked = the program may run. System programs (Explorer, Finder, …) and Next-Class are always allowed. Missing a program? Take it over from a student's running programs (☰).",
+    "saveastemplate": "Save as template",
+    "templatename": "Template name",
+    "selectedcount": "{n} selected",
+    "apply": "Apply",
+    "ownprograms": "Own programs",
+    "deletecustom": "Delete own program",
+    "runningapps": "Running programs",
+    "runningof": "Running programs: {name}",
+    "runninghint": "Programs with a window on this device. “Allow” adds the program to the allowlist (and stores it as an own program).",
+    "norunning": "No list received yet.",
+    "allow": "Allow",
+    "violations": "Reports",
+    "badgegrace": "Lock in {s} s",
+    "badgeactive": "Program lock",
+    "action": {
+      "reported": "reported",
+      "closed": "closed",
+      "killed": "ended"
+    },
+    "confirmkill": "All programs not allowed will be closed after a 30 second warning. Allowed: {n} programs.",
+    "confirmreport": "Programs not allowed will only be reported after 30 seconds, not closed. Allowed: {n} programs."
   }
 }

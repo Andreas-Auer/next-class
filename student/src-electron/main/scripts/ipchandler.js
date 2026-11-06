@@ -29,6 +29,7 @@ import { encryptSessionPayload } from '../../../../shared/apiSecret.js';
 import { updateSystemTray } from './traymenu.js';
 import { syncClientDisplayInfo } from './displayInfo.js';
 import { examApiFetch } from './examApiFetch.js';
+import AppLock from './applock/appLock.js';
 
 /** IPC between the student renderer and the main process. */
 class IpcHandler {
@@ -200,6 +201,7 @@ class IpcHandler {
         /** Sessions found on the network plus our own state (polled by the renderer). */
         ipcMain.handle('getinfoasync', () => {
             syncClientDisplayInfo(this.multicastClient.clientinfo);
+            this.multicastClient.clientinfo.applock = AppLock.status();   // live state (e.g. warning countdown)
             return {
                 serverlist: this.multicastClient.examServerList,
                 clientinfo: this.multicastClient.clientinfo,
@@ -258,6 +260,7 @@ class IpcHandler {
         if (process.env.NXE_E2E_SERVER_API_PORT) {
             ipcMain.handle('e2e-drop-connection', () => this.CommHandler.dropRegistration());
             ipcMain.handle('e2e-force-unchanged', (_e, seconds) => this.CommHandler.forceUnchanged(Number(seconds) || 0));
+            ipcMain.handle('e2e-fake-apps', (_e, apps) => { AppLock.fakeApps = apps; AppLock.runningAppsAt = 0; });
         }
 
         /** Student leaves the session: tell the teacher (best effort), then forget the registration. */
