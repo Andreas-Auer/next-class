@@ -40,7 +40,7 @@ if (!config.development && process.argv.some(arg => /^--(?:inspect(?:-brk)?|remo
 }
 
 // So Electron single-instance lock uses a different userData than student (lock key = userData + execPath)
-app.setName('next-exam-teacher');
+app.setName('next-class-teacher');
 
 log.initialize(); // initialize the logger for any renderer process
 if (!config.workdirectory) config.workdirectory = platformDispatcher.workdirectory

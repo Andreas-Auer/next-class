@@ -36,7 +36,7 @@ function isAllowedOAuthNavigation(rawUrl) {
     const hostname = parsed.hostname.toLowerCase()
     if (parsed.protocol !== 'https:') return false
     if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
-      return parsed.port === '22422' && /^\/server\/control\/(?:oauth|msauth)$/.test(parsed.pathname)
+      return parsed.port === '22522' && /^\/server\/control\/(?:oauth|msauth)$/.test(parsed.pathname)
     }
     return OAUTH_HOST_SUFFIXES.some((suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`))
   } catch {
@@ -106,7 +106,7 @@ class WindowHandler {
         // isolated: ephemeral in-memory session (no "persist:") so verify forces a fresh login and leaves the teacher's default BiP session intact
         const webPreferences = isolated ? { partition: `bip-verify-${Date.now()}` } : undefined
         this.bipwindow = new BrowserWindow({
-            title: 'Next-Exam',
+            title: 'Next-Class',
             icon: join(getPublicBase(), 'icons', 'icon.png'),
             center:true,
             width: 1200,
@@ -268,7 +268,7 @@ class WindowHandler {
         const currentDir = fileURLToPath(new URL('.', import.meta.url))
 
         this.mainwindow = new BrowserWindow({
-            title: 'Next-Exam-Teacher',
+            title: 'Next-Class Lehrer',
             backgroundColor: '#2e2c29',
             show: false,
             icon: join(getPublicBase(), 'icons', 'icon.png'),
@@ -405,7 +405,7 @@ class WindowHandler {
         this.authwindow.webContents.on('will-redirect', guardNavigation)
         this.authwindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
     
-        let url = `https://localhost:22422/server/control/oauth`
+        let url = `https://localhost:22522/server/control/oauth`
         this.authwindow.loadURL(url)
         if (this.config.showdevtools) { this.authwindow.webContents.openDevTools()  }
         // Electron 39: ready-to-show fires AFTER show() is called, so use did-finish-load instead

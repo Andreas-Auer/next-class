@@ -12,7 +12,7 @@
     <div v-show="!isLoading" class="w-100 p-3 text-white bg-dark text-left" style="height: 66px; z-index: 1000;">
     <span class="text-white m-1 d-inline-flex align-items-center flex-wrap ms-1">
         <img src='/img/svg/speedometer.svg' class="white me-2" width="32" height="32">
-        <span class="fs-4 align-middle me-2" @click="handleClick">Next-Exam</span>
+        <span class="fs-4 align-middle me-2" @click="handleClick">Next-Class</span>
     </span>
 
         <span class="fs-4 align-middle ms-3" style="float: right">Student</span>
@@ -1809,14 +1809,16 @@ export default {
         },
         showCopyleft() {
             this.$swal.fire({
-                title: "<span id='cpleft' class='active' style='display:inline-block; transform: scaleX(-1); vertical-align: middle; cursor: pointer;'>&copy;</span> <span style='font-size:0.7em'>Thomas Michael Weissel </span>",
+                // About dialog: Next-Class is a GPLv3 fork of Next-Exam - keep the original copyright notice visible
+                title: "<span id='cpleft' class='active' style='display:inline-block; transform: scaleX(-1); vertical-align: middle; cursor: pointer;'>&copy;</span> <span style='font-size:0.7em'>Next-Class</span>",
                 icon: 'info',
                 html: `
-                <a href="https://www.bmb.gv.at/Themen/schule/zrp/dibi/foss.html" target="_blank"><img style="width: 230px; opacity:1;" src="/img/BMB_Logo_srgb.png"></a>
-                <br>
-                <br>
-                <a href="https://linux-bildung.at" target="_blank"><img style="width: 50px; opacity:0.7;" src="/img/osos.svg"></a>   <br>
-                <span style="font-size:0.8em"> <a href="https://next-exam.at" target="_blank">next-exam.at</a> </span> <br>
+                <span style="font-size:0.9em">Unterrichtswerkzeug – keine Prüfungsumgebung</span> <br><br>
+                <span style="font-size:0.8em"><b>Fork von <a href="https://next-exam.at" target="_blank">Next-Exam</a></b></span> <br>
+                <span style="font-size:0.8em">Next-Exam &copy; Thomas Michael Weissel und Mitwirkende</span> <br>
+                <span style="font-size:0.8em">Anpassungen für Next-Class: Andreas Auer</span> <br><br>
+                <span style="font-size:0.8em">Lizenz: GNU GPL v3 · <a href="https://github.com/Andreas-Auer/next-class" target="_blank">Quellcode</a></span> <br>
+                <span style="font-size:0.75em; opacity:0.7">Next-Class ist kein offizielles Produkt des BMB und wird nicht vom Next-Exam-Team betreut.</span> <br><br>
                 <span style="font-size:0.8em">Version: ${this.version} ${this.info}</span> <br>
                 <span style="font-size:0.8em">Build: ${this.buildDate}</span>
                 `,

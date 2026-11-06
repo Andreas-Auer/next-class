@@ -1,14 +1,20 @@
 {
-  "name": "next-exam-student",
+  "name": "next-class-student",
   "main": "dist/main/main.mjs",
   "author": {
     "name": "Thomas Michael Weissel",
     "email": "valueerror@gmail.com",
     "url": "https://next-exam.at"
   },
-  "homepage": "https://next-exam.at",
+  "contributors": [
+    {
+      "name": "Andreas Auer",
+      "url": "https://github.com/Andreas-Auer"
+    }
+  ],
+  "homepage": "https://github.com/Andreas-Auer/next-class",
   "license": "GPL-3.0",
-  "description": "An exam managment tool for digital exams",
+  "description": "Next-Class Schüler-App – Unterrichtsmodus (Fork von Next-Exam)",
   "type": "module",
   "scripts": {
     "dev:quasar": "quasar dev",
@@ -183,7 +189,7 @@
     "tiff": "5.0.3",
     "@parcel/watcher": "npm:@favware/skip-dependency@1.2.2"
   },
-  "buildVersion": "2.1.2.5",
-  "version": "2.1.2",
-  "buildNumber": "5"
+  "buildVersion": "0.1.0.1",
+  "version": "0.1.0",
+  "buildNumber": "1"
 }

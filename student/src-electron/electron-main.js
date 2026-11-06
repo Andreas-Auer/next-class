@@ -302,7 +302,7 @@ async function runParentProcessCheck() {
                 type: 'question',
                 buttons: ['OK'],
                 title: 'Terminate Program',
-                message: 'Unerlaubter Programmstart aus einem Webbrowser erkannt.\nNext-Exam wird beendet!',
+                message: 'Unerlaubter Programmstart aus einem Webbrowser erkannt.\nNext-Class wird beendet!',
             });
             WindowHandler.mainwindow.allowexit = true;
             app.quit();

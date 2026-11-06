@@ -36,7 +36,7 @@ const config = {
     multicastClientPort: ${process.env.MULTICAST_CLIENT_PORT},
     multicastServerClientPort: ${process.env.MULTICAST_SERVER_CLIENT_PORT},
 
-    multicastServerAdrr: '239.1.1.1',
+    multicastServerAdrr: '${process.env.MULTICAST_ADDRESS || '239.255.42.1'}',
     hostip: "0.0.0.0",
     gateway: true,
     examServerList: {},
@@ -73,8 +73,8 @@ export default config;
 fs.writeFileSync(configJsPath, configJsContent);
 
 // Inject app secrets from env into their source files (placeholder default "NEXT-EXAM" in .env.production; CI overwrites via GitHub secrets).
-const apiSecret = process.env.NEXT_EXAM_API_SECRET || 'NEXT-EXAM';
-const connectionSecret = process.env.CONNECTION_SECRET || 'NEXT-EXAM';
+const apiSecret = process.env.NEXT_EXAM_API_SECRET || 'NEXT-CLASS';
+const connectionSecret = process.env.CONNECTION_SECRET || 'NEXT-CLASS';
 
 const apiSecretPath = '../shared/nextExamApiSecret.js';
 let apiSecretContent = fs.readFileSync(apiSecretPath, 'utf8');
@@ -86,7 +86,7 @@ let extraContent = fs.readFileSync(extraPath, 'utf8');
 extraContent = extraContent.replace(/const EXTRA = '.*?';/, `const EXTRA = '${connectionSecret}';`);
 fs.writeFileSync(extraPath, extraContent);
 
-console.log(`✅ Secrets injected (api=${apiSecret === 'NEXT-EXAM' ? 'default' : 'custom'}, connection=${connectionSecret === 'NEXT-EXAM' ? 'default' : 'custom'})`);
+console.log(`✅ Secrets injected (api=${apiSecret === 'NEXT-CLASS' ? 'default' : 'custom'}, connection=${connectionSecret === 'NEXT-CLASS' ? 'default' : 'custom'})`);
 
 // 2. update package.json version/build fields (used by quasar.config.ts and electron builder)
 const buildVersion = `${process.env.VERSION || '2.1.0'}.${process.env.BUILD_NUMBER || '4'}`;
@@ -97,7 +97,7 @@ packageJson.buildNumber = process.env.BUILD_NUMBER || '4';
 packageJson.buildVersion = buildVersion;
 fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
 
-const filename = `${process.env.PRODUCT_NAME || 'Next-Exam-Teacher'}_${process.env.VERSION}.${process.env.BUILD_NUMBER}_${buildDate}`;
+const filename = `${process.env.PRODUCT_NAME || 'Next-Class-Teacher'}_${process.env.VERSION}.${process.env.BUILD_NUMBER}_${buildDate}`;
 console.log('✅ versions updated:');
 console.log(`Version: ${process.env.VERSION}`);
 console.log(`Build Number: ${process.env.BUILD_NUMBER}`);

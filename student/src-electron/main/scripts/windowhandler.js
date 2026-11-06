@@ -351,7 +351,7 @@ class WindowHandler {
 
     createBiPLoginWin(biptest) {
         this.bipwindow = new BrowserWindow({
-            title: 'Next-Exam',
+            title: 'Next-Class',
             icon: join(platformDispatcher.publicBase, 'icons', 'icon.png'),
             center:true,
             width: 1000,
@@ -429,7 +429,7 @@ class WindowHandler {
      */
     createEasterWin() {
         this.easterwin = new BrowserWindow({
-            title: 'Next-Exam',
+            title: 'Next-Class',
             icon: join(platformDispatcher.publicBase, 'icons', 'icon.png'),
             center:true,
             width: 768,
@@ -821,7 +821,7 @@ class WindowHandler {
         }
 
         this.mainwindow = new BrowserWindow({
-            title: 'Next-Exam-Student',
+            title: 'Next-Class Schüler',
             icon: join(platformDispatcher.publicBase, 'icons', 'icon.png'),
             x: x,
             y: y,
@@ -992,7 +992,7 @@ class WindowHandler {
                 type: 'info',
                 buttons: ['OK'],
                 title: 'Minimize to System Tray',
-                message: 'Die Anwendung Next-Exam wurde minimiert!',
+                message: 'Die Anwendung Next-Class wurde minimiert!',
         
             });
         } finally {

@@ -31,7 +31,7 @@ const INTERNAL_KIOSK_ALLOWED_EXE_NAMES = new Set([
     'powershell.exe', 'reg.exe', 'whoami.exe', 'next-exam-student.exe',
 ]);
 const KIOSK_BUNDLE_LAUNCH_EXE_CANDIDATES = ['Next-Exam-Student.exe', 'next-exam.exe'];
-const KIOSK_BUNDLE_PORTABLE_UNPACK_DIR = path.join(os.tmpdir(), 'next-exam-student');
+const KIOSK_BUNDLE_PORTABLE_UNPACK_DIR = path.join(os.tmpdir(), 'next-class-student');
 const KIOSK_BUNDLE_MSI_INSTALL_DIR = 'C:\\Program Files\\Next-Exam-Student';
 
 /**

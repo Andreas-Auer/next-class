@@ -2259,7 +2259,7 @@ class IpcHandler {
     }
 
     async prepareSecurePayload(data, sessionRef) {
-        const EXTRA = 'NEXT-EXAM';
+        const EXTRA = 'NEXT-CLASS';
         const PAD = '0';
         const enc = new TextEncoder(); // Initialize text encoder
 

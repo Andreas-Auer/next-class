@@ -1,6 +1,6 @@
 {
-  "name": "next-exam-teacher",
-  "version": "2.1.2",
+  "name": "next-class-teacher",
+  "version": "0.1.0",
   "private": true,
   "main": "dist/main/main.mjs",
   "author": {
@@ -8,9 +8,15 @@
     "email": "valueerror@gmail.com",
     "url": "https://next-exam.at"
   },
-  "homepage": "https://next-exam.at",
+  "contributors": [
+    {
+      "name": "Andreas Auer",
+      "url": "https://github.com/Andreas-Auer"
+    }
+  ],
+  "homepage": "https://github.com/Andreas-Auer/next-class",
   "license": "GPL-3.0",
-  "description": "An exam managment tool for digital exams",
+  "description": "Next-Class Lehrer-App – Unterrichtsmodus (Fork von Next-Exam)",
   "type": "module",
   "scripts": {
     "dev:quasar": "quasar dev",
@@ -129,6 +135,6 @@
   "overrides": {
     "@parcel/watcher": "npm:@favware/skip-dependency@1.2.2"
   },
-  "buildNumber": "5",
-  "buildVersion": "2.1.2.5"
+  "buildNumber": "1",
+  "buildVersion": "0.1.0.1"
 }

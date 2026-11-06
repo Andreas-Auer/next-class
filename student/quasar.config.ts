@@ -51,7 +51,7 @@ const buildDate = (() => {
     String(now.getDate()).padStart(2, '0');
 })();
 
-const productName = process.env.PRODUCT_NAME || pkg.name || 'Next-Exam-Student';
+const productName = process.env.PRODUCT_NAME || pkg.name || 'Next-Class-Student';
 const version = process.env.VERSION || pkg.version || '2.1.0';
 const buildNumber = process.env.BUILD_NUMBER || '4';
 const artifactDate = buildDate;
@@ -467,7 +467,7 @@ export default defineConfig(( ctx: any ) => {
       },
 
       builder: {
-        appId: 'com.nextexam.student',
+        appId: 'com.nextclass.student',
         productName,
         buildVersion: `${version}.${buildNumber}`,
         // disable implicit CI publishing (removed in electron-builder v27)
@@ -522,13 +522,13 @@ export default defineConfig(( ctx: any ) => {
           files: ['**/*', '!public/minimal-jre-11-win/**', '!public/minimal-jre-11-lin/**', '!public/qemu/win/**', '!public/qemu/lin/**', '!node_modules/koffi/**', '!node_modules/@koromix/**', ...rendererOnlyAsarExcludes],
         },
         dmg: { sign: false },
-        portable: { useZip: true, unpackDirName: 'next-exam-student', splashImage: 'public/splash.bmp' },
+        portable: { useZip: true, unpackDirName: 'next-class-student', splashImage: 'public/splash.bmp' },
         msi: {
           perMachine: true,
           createDesktopShortcut: true,
           createStartMenuShortcut: true,
-          upgradeCode: '95a8e931-7946-44c5-9a9c-ec31d1553b03',
-          shortcutName: 'Next-Exam Student',
+          upgradeCode: 'f3fdaecc-ad4b-4eb6-924a-b177892999b5',
+          shortcutName: 'Next-Class Schüler',
         },
         win: {
           icon: 'public/icons/icon.ico',

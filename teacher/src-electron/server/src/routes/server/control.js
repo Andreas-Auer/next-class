@@ -783,7 +783,7 @@ function respondStudentAuth(res, reason) {
 
 
 async function processSecurePayload(packet, sessionRef) {
-    const EXTRA = 'NEXT-EXAM';
+    const EXTRA = 'NEXT-CLASS';
     const PAD = '0';
     const enc = new TextEncoder(); // Initialize text encoder
 

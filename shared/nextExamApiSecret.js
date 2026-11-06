@@ -4,7 +4,7 @@
  * The secret is never sent in clear: callers send a timestamped HMAC proof instead (see buildAppSecretHeaders).
  */
 
-export const NEXT_EXAM_API_SECRET = 'NEXT-EXAM';
+export const NEXT_EXAM_API_SECRET = 'NEXT-CLASS';
 
 /** Timestamp (ms) header; used together with the HMAC to bound replay to a time window. */
 export const NEXT_EXAM_API_TS_HEADER = 'x-next-exam-app-ts';
