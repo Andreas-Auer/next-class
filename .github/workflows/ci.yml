@@ -40,7 +40,7 @@ jobs:
 
   e2e:
     name: End-to-end tests (macOS)
-    runs-on: macos-14
+    runs-on: macos-latest
     needs: unit
     steps:
       - uses: actions/checkout@v4
@@ -74,7 +74,7 @@ jobs:
             os: windows-latest
             builds: build:win:all
           - name: macOS
-            os: macos-14
+            os: macos-latest
             builds: build:mac:arm64 build:mac:x64
           - name: Linux
             os: ubuntu-latest
