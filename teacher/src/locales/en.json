@@ -141,7 +141,36 @@
       "online": "reachable again",
       "program": "program lock",
       "firewall": "firewall changed",
-      "netlock-problem": "internet lock not effective"
+      "netlock-problem": "internet lock not effective",
+      "teacher-joined": "joined as co-teacher"
+    }
+  },
+  "coteacher": {
+    "title": "Co-teacher",
+    "teachers": "Teachers",
+    "code": "Teacher code",
+    "host": "Teacher (host)",
+    "leave": "Leave session",
+    "hostunreachable": "Host not reachable",
+    "ended": "Session ended",
+    "endedtext": "The teacher who started the session ended it or removed you.",
+    "requesttitle": "Co-teacher wants to join",
+    "requesttext": "{name} ({ip}) wants to co-control this session. Allow?",
+    "approve": "Allow",
+    "deny": "Deny",
+    "join": "Join as co-teacher",
+    "joinhint": "Team teaching: join another teacher's session. The teacher code is shown on their dashboard.",
+    "address": "IP of the other teacher app",
+    "search": "Search",
+    "name": "Your name",
+    "waiting": "Waiting for approval …",
+    "waitingtext": "The other teacher has to allow your request on their dashboard.",
+    "denied": "The request was denied.",
+    "errors": {
+      "WRONG_CODE": "Wrong teacher code.",
+      "NOT_FOUND": "Session not found.",
+      "TOO_MANY": "Too many open requests – please try again later.",
+      "MISSING_NAME": "Please enter your name."
     }
   }
 }

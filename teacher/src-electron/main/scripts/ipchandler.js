@@ -25,9 +25,20 @@ import { STUDENT_OFFLINE_AFTER_MS, addEvent } from '../../server/src/routes/serv
 import i18n from '../../../src/locales/locales.js';
 import crypto from 'crypto';
 import AppLockStore from './applockStore.js';
+import { sessionOps } from './sessionOps.js';
 import { resolveEntries, entryFromRunningApp } from '../../../../shared/appCatalog.js';
 
 const { t } = i18n.global;
+
+/** Accept only well-formed custom program entries sent by a co-teacher. */
+function validCustomEntries(list) {
+    const strings = (v) => Array.isArray(v) && v.length <= 10 && v.every((x) => typeof x === 'string' && x.length < 200);
+    return (Array.isArray(list) ? list : []).slice(0, 100).filter((e) => e && typeof e.id === 'string' && e.id.startsWith('custom-')
+        && typeof e.label === 'string' && e.label.length < 100
+        && (!e.win || strings(e.win.exe)) && (!e.mac || ((!e.mac.bundleId || strings(e.mac.bundleId)) && (!e.mac.app || strings(e.mac.app))))
+        && (!e.linux || strings(e.linux.proc)))
+        .map((e) => ({ id: e.id, label: e.label, custom: true, win: e.win, mac: e.mac, linux: e.linux }));
+}
 const SESSION_NAME_PATTERN = /^[a-z0-9äöüß][a-z0-9äöüß _.-]{0,39}$/;
 const DEFAULT_SCREENSHOT_INTERVAL_S = 4;
 const DEFAULT_IDLE_THRESHOLD_S = 120;
@@ -77,6 +88,12 @@ class IpcHandler {
         };
     }
 
+    /** Register a session operation for the local dashboard (IPC) and for co-teachers (RPC). */
+    op(name, fn) {
+        sessionOps[name] = (payload) => fn(null, payload);
+        ipcMain.handle(name, fn);
+    }
+
     init(mc, config, wh) {
         this.multicastClient = mc;
         this.config = config;
@@ -97,6 +114,9 @@ class IpcHandler {
             const pin = this.config.development ? '1111' : String(Math.floor(Math.random() * 9000) + 1000);
             const session = new MulticastServer();
             session.init(servername, pin);
+            session.teacherCode = this.config.development ? '222222' : String(crypto.randomInt(100000, 1000000));
+            session.coTeachers = [];          // { name, token, ip, joinedAt, lastSeen }
+            session.pendingJoins = new Map(); // requestId -> { name, ip, at, status: pending|approved|denied, token? }
             session.serverstatus = { screenslocked: false, screenshotinterval: DEFAULT_SCREENSHOT_INTERVAL_S, idlethreshold: DEFAULT_IDLE_THRESHOLD_S };
             this.config.examServerList[servername] = session;
             log.info(`ipchandler @ startExamServer: session "${servername}" started`);
@@ -126,21 +146,22 @@ class IpcHandler {
                 .map((s) => ({ id: s.id, servername: s.servername, serverip: s.serverip }));
         });
 
-        ipcMain.handle('sessionEvents', (_event, servername) => this.session(servername)?.events || []);
+        this.op('sessionEvents', (_event, servername) => this.session(servername)?.events || []);
 
-        ipcMain.handle('getSessionInfo', (_event, servername) => {
+        this.op('getSessionInfo', (_event, servername) => {
             const session = this.session(servername);
             if (!session) return { status: 'error' };
             return {
                 status: 'success',
                 servername,
+                teacherCode: session.teacherCode,
                 pin: session.serverinfo.pin,
                 serverip: session.serverinfo.ip,
                 serverstatus: session.serverstatus,
             };
         });
 
-        ipcMain.handle('studentlist', (_event, servername) => {
+        this.op('studentlist', (_event, servername) => {
             const session = this.session(servername);
             if (!session) return { status: 'error', studentlist: [] };
             const now = Date.now();
@@ -155,7 +176,7 @@ class IpcHandler {
         });
 
         /** Change session settings: { servername, screenslocked?, screenshotinterval? } */
-        ipcMain.handle('setServerStatus', (_event, payload = {}) => {
+        this.op('setServerStatus', (_event, payload = {}) => {
             const session = this.session(payload.servername);
             if (!session) return { status: 'error', message: t('control.notfound') };
             if (typeof payload.screenslocked === 'boolean') session.serverstatus.screenslocked = payload.screenslocked;
@@ -170,7 +191,7 @@ class IpcHandler {
         });
 
         /** Remove a student: online students get "kicked" with the next heartbeat, offline ones are dropped at once. */
-        ipcMain.handle('kickStudent', (_event, { servername, clientname } = {}) => {
+        this.op('kickStudent', (_event, { servername, clientname } = {}) => {
             const session = this.session(servername);
             const student = session?.studentList.find((s) => s.clientname === clientname);
             if (!student) return { status: 'error' };
@@ -199,7 +220,7 @@ class IpcHandler {
          * Start, change or lift the program lock of a session:
          * { servername, active, mode: 'kill'|'report', allowedIds: [...], templateName, graceSeconds }
          */
-        ipcMain.handle('setAppLock', (_e, payload = {}) => {
+        this.op('setAppLock', (_e, payload = {}) => {
             const session = this.session(payload.servername);
             if (!session) return { status: 'error', message: t('control.notfound') };
             if (!payload.active) {
@@ -218,7 +239,8 @@ class IpcHandler {
                 graceSeconds: Number.isFinite(payload.graceSeconds) ? payload.graceSeconds : Number(process.env.NEXT_CLASS_APPLOCK_GRACE ?? 30),
                 templateName: String(payload.templateName || ''),
                 allowedIds,
-                allowed: resolveEntries(allowedIds, AppLockStore.load().customEntries),
+                // own programs of a co-teacher are not stored on this device: they are sent along
+                allowed: resolveEntries(allowedIds, [...AppLockStore.load().customEntries, ...validCustomEntries(payload.customEntries)]),
                 startedAt: now,
                 until,
             };
@@ -231,7 +253,7 @@ class IpcHandler {
          * { servername, active, until (unix ms) }. The student devices keep the lock until "until"
          * even without contact to this app; ending the session or removing a student lifts it earlier.
          */
-        ipcMain.handle('setNetLock', (_e, payload = {}) => {
+        this.op('setNetLock', (_e, payload = {}) => {
             const session = this.session(payload.servername);
             if (!session) return { status: 'error', message: t('control.notfound') };
             if (!payload.active) {
@@ -251,6 +273,49 @@ class IpcHandler {
             };
             log.info(`ipchandler @ setNetLock: ${payload.servername} -> until ${new Date(until).toLocaleTimeString()}`);
             return { status: 'success', netlock: session.serverstatus.netlock };
+        });
+
+        // ---- co-teachers -------------------------------------------------------------
+        /** All teachers of a session (host first). Co-teachers count as connected for 15 s after their last call. */
+        this.op('teacherList', (_e, servername) => {
+            const session = this.session(servername);
+            if (!session) return [];
+            const now = Date.now();
+            return [
+                { name: t('coteacher.host'), host: true, online: true },
+                ...(session.coTeachers || []).map((c) => ({ name: c.name, ip: c.ip, joinedAt: c.joinedAt, online: now - c.lastSeen < 15000 })),
+            ];
+        });
+
+        /** Join requests waiting for the host's decision (host only, not callable by co-teachers). */
+        ipcMain.handle('pendingTeacherJoins', (_e, servername) => {
+            const session = this.session(servername);
+            if (!session) return [];
+            return [...session.pendingJoins.entries()].filter(([, r]) => r.status === 'pending')
+                .map(([requestId, r]) => ({ requestId, name: r.name, ip: r.ip, at: r.at }));
+        });
+
+        ipcMain.handle('decideTeacherJoin', (_e, { servername, requestId, approve } = {}) => {
+            const session = this.session(servername);
+            const req = session?.pendingJoins.get(requestId);
+            if (!req || req.status !== 'pending') return { status: 'error' };
+            if (approve) {
+                req.status = 'approved';
+                req.token = `teacher-${crypto.randomUUID()}`;
+                session.coTeachers.push({ name: req.name, ip: req.ip, token: req.token, joinedAt: Date.now(), lastSeen: Date.now() });
+                addEvent(session, req.name, 'teacher-joined');
+            } else {
+                req.status = 'denied';
+            }
+            log.info(`ipchandler @ decideTeacherJoin: ${req.name} ${req.status}`);
+            return { status: 'success' };
+        });
+
+        ipcMain.handle('removeCoTeacher', (_e, { servername, name } = {}) => {
+            const session = this.session(servername);
+            if (!session) return { status: 'error' };
+            session.coTeachers = session.coTeachers.filter((c) => c.name !== name);
+            return { status: 'success' };
         });
 
         ipcMain.handle('checkhostip', () => this.checkHostIp());

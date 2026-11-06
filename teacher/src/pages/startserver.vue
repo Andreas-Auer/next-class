@@ -56,11 +56,21 @@
                 </div>
             </div>
 
-            <div v-if="lanSessions.length" class="mt-5">
-                <h6 class="text-secondary">{{ $t('startserver.lansessions') }}</h6>
-                <ul class="text-secondary small">
-                    <li v-for="s in lanSessions" :key="s.id">{{ s.servername }} ({{ s.serverip }})</li>
-                </ul>
+            <!-- team teaching: join another teacher's session -->
+            <div class="mt-5" style="max-width: 640px;">
+                <h5>{{ $t('coteacher.join') }}</h5>
+                <p class="text-secondary small">{{ $t('coteacher.joinhint') }}</p>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <div v-for="s in [...lanSessions, ...manualSessions]" :key="s.id + s.address" class="border bg-white rounded p-2" style="width: 240px;">
+                        <strong>{{ s.servername }}</strong> <span class="text-secondary small">{{ s.address }}</span>
+                        <button class="btn btn-sm btn-outline-primary w-100 mt-1" :data-e2e="`cojoin-${s.servername}`" @click="coJoin(s.address, s.servername)">{{ $t('coteacher.join') }}</button>
+                    </div>
+                </div>
+                <div class="input-group input-group-sm" style="max-width: 420px;">
+                    <span class="input-group-text">{{ $t('coteacher.address') }}</span>
+                    <input v-model.trim="coAddress" class="form-control" data-e2e="cojoin-address" placeholder="10.0.0.5" @keyup.enter="searchManual">
+                    <button class="btn btn-outline-secondary" data-e2e="cojoin-search" @click="searchManual">{{ $t('coteacher.search') }}</button>
+                </div>
             </div>
         </div>
     </div>
@@ -79,6 +89,8 @@ export default {
             hostip: null,
             runningSessions: [],
             lanSessions: [],
+            manualSessions: [],
+            coAddress: '',
             pollTimer: null,
             interfaceDialogOpen: false,
         }
@@ -101,7 +113,7 @@ export default {
             this.config = cfg
             if (this.hostip?.availableInterfaces?.length > 1 && !this.hostip.preferredInterface) this.selectPreferredInterface()
             this.runningSessions = await window.ipcRenderer.invoke('runningSessions')
-            this.lanSessions = await window.ipcRenderer.invoke('lanSessions')
+            this.lanSessions = (await window.ipcRenderer.invoke('lanSessions')).map((s) => ({ ...s, address: s.serverip }))
         },
         async startSession() {
             if (!this.validName || this.starting) return
@@ -133,6 +145,48 @@ export default {
                 this.hostip = await window.ipcRenderer.invoke('checkhostip')
             }
             this.interfaceDialogOpen = false
+        },
+        async searchManual() {
+            if (!this.coAddress) return
+            const r = await window.ipcRenderer.invoke('cojoin-list', this.coAddress)
+            if (r.status === 'success') this.manualSessions = r.serverlist.map((s) => ({ id: s.id, servername: s.servername, address: s.address }))
+            else this.$swal.fire({ title: this.$t('general.error'), text: r.message, icon: 'error' })
+        },
+        /** Ask to join as co-teacher, then wait for the host's approval. */
+        async coJoin(address, servername) {
+            const form = await this.$swal.fire({
+                title: this.$t('coteacher.join'),
+                html: `<input id="co-name" class="swal2-input" data-e2e="cojoin-name" placeholder="${this.$t('coteacher.name')}" value="${(localStorage.getItem('next-class-teacher-name') || '').replace(/"/g, '')}">`
+                    + `<input id="co-code" class="swal2-input" data-e2e="cojoin-code" inputmode="numeric" maxlength="6" placeholder="${this.$t('coteacher.code')}">`,
+                showCancelButton: true,
+                cancelButtonText: this.$t('general.cancel'),
+                preConfirm: () => ({ name: document.getElementById('co-name').value.trim(), code: document.getElementById('co-code').value.trim() }),
+            })
+            if (!form.isConfirmed) return
+            const { name, code } = form.value
+            try { localStorage.setItem('next-class-teacher-name', name) } catch { /* private mode */ }
+            const req = await window.ipcRenderer.invoke('cojoin-request', { address, servername, code, name })
+            if (req.status !== 'pending') {
+                const text = req.code && this.$te(`coteacher.errors.${req.code}`) ? this.$t(`coteacher.errors.${req.code}`) : req.message
+                this.$swal.fire({ title: this.$t('general.error'), text, icon: 'error' })
+                return
+            }
+            let cancelled = false
+            this.$swal.fire({ title: this.$t('coteacher.waiting'), text: this.$t('coteacher.waitingtext'), showConfirmButton: false, showCancelButton: true, cancelButtonText: this.$t('general.cancel'), allowOutsideClick: false })
+                .then((r) => { if (r.isDismissed) cancelled = true })
+            for (let i = 0; i < 90 && !cancelled; i++) {   // up to 3 minutes
+                await new Promise((r) => setTimeout(r, 2000))
+                const st = await window.ipcRenderer.invoke('cojoin-status', { address, servername, requestId: req.requestId, name })
+                if (st.status === 'approved') {
+                    this.$swal.close()
+                    this.$router.push({ name: 'dashboard', params: { servername }, query: { remote: '1' } })
+                    return
+                }
+                if (st.status === 'denied' || st.status === 'error') {
+                    this.$swal.fire({ title: this.$t('coteacher.join'), text: this.$t('coteacher.denied'), icon: 'error' })
+                    return
+                }
+            }
         },
         toggleLocale() {
             this.$i18n.locale = this.inactiveLocale

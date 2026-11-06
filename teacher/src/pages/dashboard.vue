@@ -15,10 +15,12 @@
         <button class="btn btn-outline-light btn-sm me-2" data-e2e="events-open" @click="openEvents">
             {{ $t('events.title') }} <span v-if="events.length" class="badge bg-secondary ms-1">{{ events.length }}</span>
         </button>
-        <button class="btn btn-danger btn-sm me-3" data-e2e="session-end" @click="endSession">
+        <span v-if="remote && !hostReachable" class="badge bg-danger me-2">{{ $t('coteacher.hostunreachable') }}</span>
+        <button v-if="remote" class="btn btn-outline-danger btn-sm me-3" data-e2e="coteacher-leave" @click="leaveAsCoTeacher">{{ $t('coteacher.leave') }}</button>
+        <button v-else class="btn btn-danger btn-sm me-3" data-e2e="session-end" @click="endSession">
             <img src="/src/assets/img/svg/stock_exit.svg" class="white me-1" width="16" height="16"> {{ $t('dashboard.end') }}
         </button>
-        <span style="font-size: 23px;">{{ $t('general.teacher') }}</span>
+        <span style="font-size: 23px;">{{ remote ? $t('coteacher.title') : $t('general.teacher') }}</span>
     </div>
 
     <div class="d-flex flex-grow-1" style="min-height: 0;">
@@ -32,9 +34,18 @@
                 <div class="small text-secondary">{{ $t('dashboard.pin') }}</div>
                 <div class="fs-3 fw-bold" data-e2e="session-pin">{{ pin }}</div>
             </div>
-            <div class="infobox mb-3">
+            <div class="infobox mb-2">
                 <div class="small text-secondary">{{ $t('dashboard.serverip') }}</div>
                 <div class="fs-6">{{ serverip }}</div>
+            </div>
+            <div class="infobox mb-3" data-e2e="teachers">
+                <div class="small text-secondary">{{ $t('coteacher.teachers') }}</div>
+                <div v-for="tch in teachers" :key="tch.name + (tch.ip || '')" class="small" :class="{ 'text-secondary': !tch.online }" :data-e2e="`teacher-${tch.name}`">
+                    {{ tch.name }}<span v-if="!tch.online"> ({{ $t('dashboard.offline') }})</span>
+                </div>
+                <div v-if="!remote && teacherCode" class="small mt-1">
+                    {{ $t('coteacher.code') }}: <strong data-e2e="teacher-code">{{ teacherCode }}</strong>
+                </div>
             </div>
 
             <button class="btn mb-2 text-start" :class="screenslocked ? 'btn-warning' : 'btn-outline-light'"
@@ -237,6 +248,13 @@ export default {
             runningAppsOf: null,
             events: [],
             eventsOpen: false,
+            remote: this.$route.query.remote === '1',
+            hostReachable: true,
+            leaving: false,
+            teacherCode: '',
+            teachers: [],
+            joinDialogOpen: false,
+            lastPolicyId: null,
             pollTimer: null,
             clockTimer: null,
         }
@@ -261,16 +279,9 @@ export default {
         },
     },
     async mounted() {
-        const info = await window.ipcRenderer.invoke('getSessionInfo', this.servername)
-        if (info.status !== 'success') { this.$router.push('/'); return }
-        this.pin = info.pin
-        this.serverip = info.serverip
-        this.screenslocked = !!info.serverstatus?.screenslocked
-        this.screenshotinterval = info.serverstatus?.screenshotinterval ?? 4
-        this.idlethreshold = info.serverstatus?.idlethreshold ?? 120
-        this.applock = info.serverstatus?.applock || { active: false }
-        this.netlock = info.serverstatus?.netlock || { active: false }
-        if (this.applock.active) { this.allowedIds = [...(this.applock.allowedIds || [])]; this.applockMode = this.applock.mode }
+        const info = await this.api('getSessionInfo', this.servername)
+        if (info?.status !== 'success') { this.$router.push('/'); return }
+        this.applySessionInfo(info, true)
         await this.loadAppLockData()
         this.clockTimer = setInterval(() => { this.now = Date.now() }, 1000)   // the idle counter ticks every second
         await this.fetchStudents()
@@ -304,13 +315,13 @@ export default {
         async saveNetExceptions() {
             await window.ipcRenderer.invoke('netlock-save-exceptions', [...this.netExceptionList])
             if (this.netlock.active) {   // apply to the running lock right away
-                const r = await window.ipcRenderer.invoke('setNetLock', { servername: this.servername, active: true, until: this.netlock.until, extraAllow: [...this.netExceptionList] })
+                const r = await this.api('setNetLock', { servername: this.servername, active: true, until: this.netlock.until, extraAllow: [...this.netExceptionList] })
                 if (r.status === 'success') this.netlock = r.netlock
             }
         },
         async toggleNetLock() {
             if (this.netlock.active) {
-                const r = await window.ipcRenderer.invoke('setNetLock', { servername: this.servername, active: false })
+                const r = await this.api('setNetLock', { servername: this.servername, active: false })
                 if (r.status === 'success') this.netlock = r.netlock
                 return
             }
@@ -326,7 +337,7 @@ export default {
                 cancelButtonText: this.$t('general.cancel'),
             })
             if (!confirm.isConfirmed) return
-            const r = await window.ipcRenderer.invoke('setNetLock', { servername: this.servername, active: true, until: capped, extraAllow: [...this.netExceptionList] })
+            const r = await this.api('setNetLock', { servername: this.servername, active: true, until: capped, extraAllow: [...this.netExceptionList] })
             if (r.status === 'success') this.netlock = r.netlock
             else this.$swal.fire({ title: this.$t('general.error'), text: r.message, icon: 'error' })
         },
@@ -399,8 +410,9 @@ export default {
         },
         async sendAppLock(active, until = this.applock.until) {
             const tplName = this.applockData.templates.find((t) => t.id === this.selectedTemplateId)?.name || ''
-            const result = await window.ipcRenderer.invoke('setAppLock', {
+            const result = await this.api('setAppLock', {
                 servername: this.servername, active, mode: this.applockMode, allowedIds: [...this.allowedIds], templateName: tplName, until,
+                customEntries: JSON.parse(JSON.stringify(this.applockData.customEntries.filter((e) => this.allowedIds.includes(e.id)))),
             })
             if (result.status !== 'success') this.$swal.fire({ title: this.$t('general.error'), text: result.message, icon: 'error' })
             if (result.status === 'success') this.applock = result.applock
@@ -420,7 +432,7 @@ export default {
             return new Date(ts).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' })
         },
         async openEvents() {
-            this.events = await window.ipcRenderer.invoke('sessionEvents', this.servername)
+            this.events = await this.api('sessionEvents', this.servername)
             this.eventsOpen = true
         },
         eventDetail(e) {
@@ -432,14 +444,70 @@ export default {
         importantEvent(e) {
             return ['app-quit', 'program', 'firewall', 'netlock-problem', 'offline'].includes(e.kind)
         },
+        /**
+         * Local dashboard: IPC to this app. Co-teacher: forwarded to the host teacher app.
+         * Returns the operation's result; a co-teacher whose session ended is sent back to the start page.
+         */
+        async api(method, payload) {
+            if (!this.remote) return window.ipcRenderer.invoke(method, payload)
+            const r = await window.ipcRenderer.invoke('remote-rpc', { method, args: payload })
+            if (r?.status === 'success') { this.hostReachable = true; return r.result }
+            if (r?.code === 'UNREACHABLE') { this.hostReachable = false; return null }
+            if (['SESSION_ENDED', 'NOT_AUTHORIZED'].includes(r?.code) && !this.leaving) {
+                this.leaving = true
+                clearInterval(this.pollTimer)
+                await this.$swal.fire({ title: this.$t('coteacher.ended'), text: this.$t('coteacher.endedtext'), icon: 'info' })
+                await window.ipcRenderer.invoke('remote-leave')
+                this.$router.push('/')
+            }
+            return null
+        },
+        /** Session state from the host (also changes made by another teacher). */
+        applySessionInfo(info, initial = false) {
+            this.pin = info.pin
+            this.teacherCode = info.teacherCode
+            this.serverip = info.serverip
+            this.screenslocked = !!info.serverstatus?.screenslocked
+            this.screenshotinterval = info.serverstatus?.screenshotinterval ?? 4
+            this.idlethreshold = info.serverstatus?.idlethreshold ?? 120
+            this.applock = info.serverstatus?.applock || { active: false }
+            this.netlock = info.serverstatus?.netlock || { active: false }
+            if (this.applock.active && (initial || this.applock.policyId !== this.lastPolicyId)) {
+                this.allowedIds = [...(this.applock.allowedIds || [])]
+                this.applockMode = this.applock.mode
+            }
+            this.lastPolicyId = this.applock.policyId
+        },
+        /** Host only: ask about co-teachers who want to join (one dialog at a time). */
+        async checkTeacherJoins() {
+            if (this.remote || this.joinDialogOpen) return
+            const pending = await window.ipcRenderer.invoke('pendingTeacherJoins', this.servername)
+            if (!pending?.length) return
+            const req = pending[0]
+            this.joinDialogOpen = true
+            const r = await this.$swal.fire({
+                title: this.$t('coteacher.requesttitle'),
+                text: this.$t('coteacher.requesttext', { name: req.name, ip: req.ip }),
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: this.$t('coteacher.approve'),
+                cancelButtonText: this.$t('coteacher.deny'),
+            })
+            await window.ipcRenderer.invoke('decideTeacherJoin', { servername: this.servername, requestId: req.requestId, approve: r.isConfirmed })
+            this.joinDialogOpen = false
+        },
         async fetchStudents() {
-            this.events = await window.ipcRenderer.invoke('sessionEvents', this.servername)
-            const result = await window.ipcRenderer.invoke('studentlist', this.servername)
-            if (result.status !== 'success') return
+            const info = await this.api('getSessionInfo', this.servername)
+            if (info?.status === 'success') this.applySessionInfo(info)
+            this.teachers = (await this.api('teacherList', this.servername)) || []
+            this.checkTeacherJoins()
+            this.events = (await this.api('sessionEvents', this.servername)) || []
+            const result = await this.api('studentlist', this.servername)
+            if (result?.status !== 'success') return
             this.students = result.studentlist.sort((a, b) => a.clientname.localeCompare(b.clientname))
         },
         async setStatus(patch) {
-            const result = await window.ipcRenderer.invoke('setServerStatus', { servername: this.servername, ...patch })
+            const result = await this.api('setServerStatus', { servername: this.servername, ...patch })
             if (result.status === 'success') {
                 this.screenslocked = result.serverstatus.screenslocked
                 this.screenshotinterval = result.serverstatus.screenshotinterval
@@ -461,7 +529,7 @@ export default {
                 cancelButtonText: this.$t('general.cancel'),
             })
             if (!result.isConfirmed) return
-            await window.ipcRenderer.invoke('kickStudent', { servername: this.servername, clientname: student.clientname })
+            await this.api('kickStudent', { servername: this.servername, clientname: student.clientname })
             this.fetchStudents()
         },
         showLarge(student) {
@@ -475,6 +543,12 @@ export default {
                 showCloseButton: true,
             })
         },
+        async leaveAsCoTeacher() {
+            this.leaving = true
+            clearInterval(this.pollTimer)
+            await window.ipcRenderer.invoke('remote-leave')
+            this.$router.push('/')
+        },
         async endSession() {
             const result = await this.$swal.fire({
                 title: this.$t('dashboard.end'),
@@ -486,7 +560,7 @@ export default {
             })
             if (!result.isConfirmed) return
             // unlock first so students are released with their next heartbeat, then stop the session
-            await window.ipcRenderer.invoke('setServerStatus', { servername: this.servername, screenslocked: false })
+            await this.api('setServerStatus', { servername: this.servername, screenslocked: false })
             await window.ipcRenderer.invoke('stopserver', this.servername)
             this.$router.push('/')
         },

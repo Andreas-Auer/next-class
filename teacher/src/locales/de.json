@@ -141,7 +141,36 @@
       "online": "wieder erreichbar",
       "program": "Programmsperre",
       "firewall": "Firewall verändert",
-      "netlock-problem": "Internetsperre nicht wirksam"
+      "netlock-problem": "Internetsperre nicht wirksam",
+      "teacher-joined": "ist als Co-Lehrkraft beigetreten"
+    }
+  },
+  "coteacher": {
+    "title": "Co-Lehrkraft",
+    "teachers": "Lehrkräfte",
+    "code": "Lehrer-Code",
+    "host": "Lehrkraft (Host)",
+    "leave": "Unterrichtseinheit verlassen",
+    "hostunreachable": "Host nicht erreichbar",
+    "ended": "Unterrichtseinheit beendet",
+    "endedtext": "Die Lehrkraft, die die Unterrichtseinheit gestartet hat, hat sie beendet oder dich entfernt.",
+    "requesttitle": "Co-Lehrkraft möchte beitreten",
+    "requesttext": "{name} ({ip}) möchte als Co-Lehrkraft mitsteuern. Zulassen?",
+    "approve": "Zulassen",
+    "deny": "Ablehnen",
+    "join": "Als Co-Lehrkraft beitreten",
+    "joinhint": "Gemeinsam unterrichten: Einer Unterrichtseinheit einer anderen Lehrkraft beitreten. Den Lehrer-Code zeigt deren Dashboard.",
+    "address": "IP der anderen Lehrer-App",
+    "search": "Suchen",
+    "name": "Dein Name",
+    "waiting": "Warte auf Bestätigung …",
+    "waitingtext": "Die andere Lehrkraft muss deinen Beitritt in ihrem Dashboard zulassen.",
+    "denied": "Der Beitritt wurde abgelehnt.",
+    "errors": {
+      "WRONG_CODE": "Falscher Lehrer-Code.",
+      "NOT_FOUND": "Unterrichtseinheit nicht gefunden.",
+      "TOO_MANY": "Zu viele offene Anfragen – bitte später erneut versuchen.",
+      "MISSING_NAME": "Bitte deinen Namen eingeben."
     }
   }
 }

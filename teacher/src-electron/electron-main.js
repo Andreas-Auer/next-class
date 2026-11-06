@@ -31,6 +31,7 @@ import server from './server/src/server.js';
 import multicastClient from './main/scripts/multicastclient.js';
 import WindowHandler from './main/scripts/windowhandler.js';
 import IpcHandler from './main/scripts/ipchandler.js';
+import CoTeacherClient from './main/scripts/coTeacherClient.js';
 
 const e2eServerApiPort = Number(process.env.NXE_E2E_SERVER_API_PORT);
 if (Number.isInteger(e2eServerApiPort)) config.serverApiPort = e2eServerApiPort;
@@ -112,7 +113,8 @@ app.commandLine.appendSwitch('lang', 'de');
 
 
 WindowHandler.init(multicastClient, config)  // mainwindow, examwindow
-IpcHandler.init(multicastClient, config, WindowHandler)  //controll all Inter Process Communication
+IpcHandler.init(multicastClient, config, WindowHandler)
+CoTeacherClient.init(config)   // joining another teacher's session as co-teacher
 
 
 /**

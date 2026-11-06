@@ -76,6 +76,7 @@ router.get('/serverlist', (_req, res) => {
         reachable: true,
         version: session.serverinfo.version,
         tlsFingerprint: config.tlsCertificateFingerprint,
+        apiPort: config.serverApiPort,
     }));
     res.send({ serverlist, status: 'success' });
 });

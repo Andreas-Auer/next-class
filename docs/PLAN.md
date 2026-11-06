@@ -15,6 +15,6 @@ Jeder Schritt bekommt einen eigenen Branch (`step-N-…`) und eine Testanleitung
 | 9 | Endzeit für beide Sperren (ohne Kontakt + 5 min, max. 4 h, Neustart = frei), nur die sperrende Einheit hebt vorzeitig auf | erledigt (`step-8-events`) |
 | 10 | macOS (pf), danach Linux (nftables) | offen |
 | 11 | Ausnahmen für die Internetsperre (Lizenzserver, Netzlaufwerke: Name, IP oder Netz) | erledigt (`step-11-exceptions`) |
-| 12 | Co-Lehrkräfte: Beitritt mit Lehrer-Code und Bestätigung, Synchronisation | offen |
+| 12 | Co-Lehrkräfte: Beitritt mit Lehrer-Code + Bestätigung, gleichberechtigte Steuerung über den Host, Zustand synchron | erledigt (`step-12-coteachers`) |
 | 13 | Übergabe und Übernahme bei Host-Ausfall | offen |
 | 14 | CI-Builds (unsigniert) und Kurzanleitung auf Deutsch | offen |

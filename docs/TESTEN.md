@@ -35,6 +35,7 @@ und die Schüler-App auf Gerät B starten (jeweils `npm --prefix teacher run dev
 | Hotspot | Während der Sperre Schülergerät mit Handy-Hotspot verbinden | Kein Internet; Lehrer sieht „Getrennt“ |
 | Manipulation | Windows (Admin): `Remove-NetFirewallRule -Group NextClass` | nach ≤ 3 s wieder gesperrt, Lehrer sieht „Firewall-Regel entfernt – wiederhergestellt“ |
 | Ende | Lehrer: „Internet freigeben“, oder Endzeit abwarten, oder Neustart | Internet wieder frei |
+| Co-Lehrkraft | Gerät C: Lehrer-App → „Als Co-Lehrkraft beitreten“ (oder IP eingeben) → Name + Lehrer-Code aus dem Host-Dashboard | Host bekommt eine Rückfrage; nach „Zulassen“ steuern beide gleichberechtigt, Änderungen erscheinen bei beiden |
 | Programm übernehmen | ☰ auf einer Kachel → „Erlauben“ | Programm steht unter „Eigene Programme“ und wird nicht mehr geschlossen |
 
 **Wichtig zur Programmsperre:** Mit `npm run dev` (ungepackte App) werden Programme nur **gemeldet**,
@@ -46,6 +47,8 @@ Zum ersten Ausprobieren in der Klasse den Modus „Nur melden“ wählen und die
 
 - Windows- und Linux-Teile der Programmsperre sind noch nicht auf echten Geräten getestet.
 - Linux mit Wayland: nur die Blockliste (Chat, Spiele …) wird durchgesetzt, keine Freigabeliste.
+- Fällt die Lehrer-App des Hosts aus, übernimmt noch keine Co-Lehrkraft (Schritt 13). Die Sperren laufen auf den
+  Schülergeräten trotzdem bis zur Endzeit weiter.
 - Schüler können die App beenden: Die Lehrkraft sieht „App beendet“; die Internetsperre bleibt (Hilfsdienst),
   die Programmsperre wirkt erst wieder, wenn die App neu gestartet wird.
 - Die Internetsperre ist nur im Probemodus getestet (Regeln werden berechnet, aber nicht gesetzt).

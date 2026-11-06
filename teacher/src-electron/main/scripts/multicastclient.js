@@ -41,7 +41,8 @@ class MulticastClient {
     init (gateway) {
         this.gateway = gateway
         try {
-            this.client = dgram.createSocket('udp4')
+            this.client = dgram.createSocket({ type: 'udp4', reuseAddr: true })   // several Next-Class teacher apps may run on one device
+            this.client.on('error', (err) => log.error(`multicastclient @ socket: ${err.message}`))
             // Bind to 0.0.0.0 to cover all interfaces; actual interface selection via addMembership()
             this.client.bind(this.PORT, '0.0.0.0', () => {
                 this.client.setBroadcast(true)
