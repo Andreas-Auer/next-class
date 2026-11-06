@@ -1,6 +1,7 @@
 /**
  * @license GPL LICENSE
- * Copyright (c) 2021 Thomas Michael Weissel
+ * Copyright (c) 2021 Thomas Michael Weissel (Next-Exam)
+ * Modifications for Next-Class (c) 2026 Andreas Auer
  * 
  * This program is free software: you can redistribute it and/or modify it 
  * under the terms of the GNU General Public License as published by the Free Software Foundation,
@@ -83,7 +84,9 @@ class MulticastClient {
      * receives messages and stores new exam instances in this.examServerList[]
      */
     messageReceived (message, rinfo) {
-        const serverInfo = JSON.parse(String(message))
+        let serverInfo
+        try { serverInfo = JSON.parse(String(message)) } catch { return }   // ignore foreign or broken packets
+        if (!serverInfo || typeof serverInfo.servername !== 'string' || !serverInfo.id) return
         serverInfo.serverip = rinfo.address
         serverInfo.serverport = rinfo.port
         serverInfo.timestamp = new Date().getTime()   //record timestamp of last message from server

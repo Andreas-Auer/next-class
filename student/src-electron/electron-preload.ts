@@ -22,10 +22,8 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron'
-import webglFindings from './preload/scripts/simplevmdetect.js';  // has to run in frontend (WebGL) > inform backend (multicastClient.clientinfo)
 
 let config = ipcRenderer.sendSync('getconfig')  // we need to fetch the updated version of the systemconfig from express api (server.js)
-const backendFindings = ipcRenderer.sendSync('get-cpu-info')  // { isVM, reasons, vendor } from vmDetection.js
 
 
 
@@ -41,22 +39,3 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
         removeListener: (channel, listener) => ipcRenderer.removeListener(channel, listener), // Removes a listener
         removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel), // Removes all listeners for a channel
     });
-
-if (webglFindings.detected || backendFindings?.isVM) {
-    ipcRenderer.send('virtualized', { webgl: webglFindings, backend: backendFindings })
-}
-
-// let spacePressed = false;
-
-// window.addEventListener("keydown", (e) => {
-//   if (e.code === "Space") { spacePressed = true;}
-//   if (e.key.toLowerCase() === "l" && spacePressed) { e.preventDefault();}
-// });
-
-// window.addEventListener("keyup", (e) => {
-//   if (e.code === "Space") { spacePressed = false; }
-// });
-  
-
-
-

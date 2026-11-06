@@ -4,7 +4,8 @@
     <div id="container" class="fadeinfast text-center">
         <div class="p-3 text-white">
             <img src="/img/svg/shield-lock.svg" class="white" width="128" height="128" ><br><br>
-            <span class="fs-4 align-middle">Next-Exam </span>
+            <span class="fs-4 align-middle">{{ $t("lock.title") }}</span><br>
+            <span class="fs-6 text-secondary">{{ $t("lock.info") }}</span>
         </div>
     </div>
 </div>

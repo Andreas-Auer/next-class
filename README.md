@@ -46,3 +46,9 @@ npm run dev
 ```
 
 `npm run dev` startet Lehrer- und Schüler-App gleichzeitig auf einem Rechner.
+
+Automatischer Ende-zu-Ende-Test (baut beide Apps und spielt eine Unterrichtseinheit durch):
+
+```bash
+npm run test:e2e
+```

@@ -1,7 +1,7 @@
 import { Agent } from 'undici'
 import { createHash } from 'crypto'
 import tls from 'tls'
-import { buildAppSecretHeaders } from '../../../../shared/nextExamApiSecret.js'
+import { buildAppSecretHeaders } from '../../../../shared/apiSecret.js'
 import multicastClient from './multicastclient.js'
 
 // One dispatcher per host+fingerprint; a changed pin invalidates the entry so TLS is renegotiated.

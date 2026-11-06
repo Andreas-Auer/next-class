@@ -1,6 +1,7 @@
 /**
  * @license GPL LICENSE
- * Copyright (c) 2021 Thomas Michael Weissel
+ * Copyright (c) 2021 Thomas Michael Weissel (Next-Exam)
+ * Modifications for Next-Class (c) 2026 Andreas Auer
  * 
  * This program is free software: you can redistribute it and/or modify it 
  * under the terms of the GNU General Public License as published by the Free Software Foundation,
@@ -53,17 +54,15 @@ class MulticastServer {
      * @param servername the given name of the server (for example "math")
      * @param pin the pin needed to register as student
      */
-    init (servername, pin, password, bip=false, bipId=null) {
+    init (servername, pin) {
         this.server = createSocket('udp4')
         this.serverinfo = {
             servername: servername,   //should be unique if several servers are allowed
             pin: pin,
-            password: password,
             timestamp: 0,
-            id: bipId ? bipId : crypto.randomUUID(),
+            id: crypto.randomUUID(),
             ip: config.hostip,
             servertoken: `server-${crypto.randomUUID()}`,
-            bip: bip,
             version: config.version
         }
         
@@ -98,9 +97,6 @@ class MulticastServer {
             timestamp: this.serverinfo.timestamp,
             id: this.serverinfo.id,
             ip: this.serverinfo.ip,
-            bip: this.serverinfo.bip,
-            requireBiP: !!this.serverstatus?.requireBiP,
-            examStatus: this.serverinfo.bip ? (this.serverstatus?.bipStatus || 'closed') : undefined,
             tlsFingerprint: config.tlsCertificateFingerprint,
             version: config.version
         }

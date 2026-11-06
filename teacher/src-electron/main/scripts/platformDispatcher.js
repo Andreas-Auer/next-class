@@ -1,6 +1,7 @@
 /**
  * @license GPL LICENSE
- * Copyright (c) 2021 Thomas Michael Weissel
+ * Copyright (c) 2021 Thomas Michael Weissel (Next-Exam)
+ * Modifications for Next-Class (c) 2026 Andreas Auer
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free Software Foundation,
@@ -47,20 +48,22 @@ class PlatformDispatcher {
             const withPublic = join(unpacked, 'public');
             return fs.existsSync(withPublic) ? withPublic : unpacked;
         }
-        return join(__dirname, '../../public');
+        // unpackaged build: assets next to the bundled main (dist/electron/UnPackaged/public); dev: project public/
+        const bundled = join(__dirname, 'public');
+        return fs.existsSync(join(bundled, 'icons')) ? bundled : join(__dirname, '../../public');
     }
 
     _getWorkdirectory() {
-        const base = config.serverdirectory || 'EXAM-TEACHER';
+        const base = config.serverdirectory || 'NEXT-CLASS-TEACHER';
         return join(this.homedirectory, base);
     }
 
     _getTempdirectory() {
-        return join(os.tmpdir(), 'exam-tmp');
+        return join(os.tmpdir(), 'next-class-teacher-tmp');
     }
 
     _getLogfile() {
-        return join(this.workdirectory, 'next-exam-teacher.log');
+        return join(this.workdirectory, 'next-class-teacher.log');
     }
 
     _getDisplayServer() {

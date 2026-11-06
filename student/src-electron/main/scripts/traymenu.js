@@ -60,19 +60,15 @@ export const updateSystemTray = (locale) => {
           CommHandler.resetConnection(); 
         } 
       }, // disconnect
-      { label: t('main.tray.exit'), click: async () => { 
-          log.warn("main @ systemtray: Closing Next-Exam"); 
-          if (platformDispatcher.runningInCage) {
-            await WindowHandler.showCageExitWarning();
-            return;
-          }
-          WindowHandler.mainwindow.allowexit = true; 
-          app.quit(); 
-        } 
+      { label: t('main.tray.exit'), click: () => {
+          log.warn("main @ systemtray: closing Next-Class");
+          WindowHandler.mainwindow.allowexit = true;
+          app.quit();
+        }
       } // exit
     ]);
   
-    tray.setToolTip('Next-Exam Student');                   // set tooltip
+    tray.setToolTip('Next-Class Schüler');                   // set tooltip
     tray.setContextMenu(contextMenu);                       // apply menu
   };
   // === end replace ===

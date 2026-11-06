@@ -1,6 +1,7 @@
 /**
  * @license GPL LICENSE
- * Copyright (c) 2021 Thomas Michael Weissel
+ * Copyright (c) 2021 Thomas Michael Weissel (Next-Exam)
+ * Modifications for Next-Class (c) 2026 Andreas Auer
  * 
  * This program is free software: you can redistribute it and/or modify it 
  * under the terms of the GNU General Public License as published by the Free Software Foundation,
@@ -20,6 +21,7 @@
  */
 
 
+import fs from 'fs';
 import log from 'electron-log';
 import chalk from 'chalk';
 import { app, BrowserWindow, powerSaveBlocker, nativeTheme, globalShortcut, Menu } from 'electron'
@@ -45,6 +47,7 @@ app.setName('next-class-teacher');
 log.initialize(); // initialize the logger for any renderer process
 if (!config.workdirectory) config.workdirectory = platformDispatcher.workdirectory
 if (!config.tempdirectory) config.tempdirectory = platformDispatcher.tempdirectory
+fs.mkdirSync(config.workdirectory, { recursive: true })   // holds the log file only
 let logfile = platformDispatcher.logfile
 
 log.eventLogger.startLogging();
@@ -63,7 +66,7 @@ log.transports.console.format = (message) => {
     }
 };
 log.verbose(`main: -------------------`)
-log.verbose(`main: starting Next-Exam Teacher "${config.version} ${config.info}" (${process.platform})${config.development ? ' (devmode on)' : ''}`)
+log.verbose(`main: starting Next-Class Teacher "${config.version} ${config.info}" (${process.platform})${config.development ? ' (devmode on)' : ''}`)
 log.verbose(`main: -------------------`)
 log.info(`main: Logfilelocation at ${logfile}`)
 platformDispatcher.messages.forEach(message => { log.debug(message) });
@@ -105,12 +108,8 @@ if (process.platform === 'darwin') {
 app.commandLine.appendSwitch('enable-features', 'Metal,CanvasOopRasterization');
 // app.commandLine.appendSwitch('force-device-scale-factor', '1');
 app.commandLine.appendSwitch('lang', 'de');
-app.commandLine.appendSwitch('allow-file-access-from-files');
 
 
-if (config.workdirectory) {
-    app.commandLine.appendSwitch('user-data-dir', config.workdirectory);
-}
 
 WindowHandler.init(multicastClient, config)  // mainwindow, examwindow
 IpcHandler.init(multicastClient, config, WindowHandler)  //controll all Inter Process Communication

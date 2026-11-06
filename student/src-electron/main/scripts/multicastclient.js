@@ -1,6 +1,7 @@
 /**
  * @license GPL LICENSE
- * Copyright (c) 2021 Thomas Michael Weissel
+ * Copyright (c) 2021 Thomas Michael Weissel (Next-Exam)
+ * Modifications for Next-Class (c) 2026 Andreas Auer
  * 
  * This program is free software: you can redistribute it and/or modify it 
  * under the terms of the GNU General Public License as published by the Free Software Foundation,
@@ -42,31 +43,17 @@ class MulticastClient {
         this.examServerList = []
         this.serverstatus = {}
         this.clientinfo = {
-            name: "DemoUser",
+            name: "",
             token: false,
-            lockedSection: 1,
-            ip: false,  // ip address is sent along by the teacher multicast server
+            ip: false,           // own ip (sent to the teacher at registration)
             hostname: false,
-            serverip: false,   // wird lokal gesetzt (ist aber logischerweise gleich der ip des multicastservers)
-            servername: false,
-            focus: true,
-            exammode: false,
-            timestamp: false,
-            virtualized: false,  // this config setting is set by simplevmdetect.js (electron preload)
-            examtype : false,
+            serverip: false,     // teacher ip (set after registration)
+            servername: false,   // session name (set after registration)
             pin: false,
             screenlock: false,
+            screenshotinterval: 4000,   // milliseconds; 0 = live view disabled by the teacher
             displayCount: 1,
             multiMonitor: false,
-            msofficeshare: false,
-            screenshotinterval: 4000,   //milliseconds
-            printrequest : false,
-            privateSpellcheck: {activated: false},
-            localLockdown: false,
-            group: 'a',
-            submissionnumber: 0,
-            localVMHost: null,
-            localVMState: null,
             version: config.version
         }
     }
@@ -129,7 +116,9 @@ class MulticastClient {
      * receives messages and stores new exam instances in this.examServerList[]
      */
      messageReceived (message, rinfo) {
-        const serverInfo = JSON.parse(String(message))
+        let serverInfo
+        try { serverInfo = JSON.parse(String(message)) } catch { return }   // ignore foreign or broken packets
+        if (!serverInfo || typeof serverInfo.servername !== 'string' || !serverInfo.id) return
         serverInfo.serverip = rinfo.address
         this.allowTeacherCertificateHost(rinfo.address, serverInfo.tlsFingerprint)
         serverInfo.serverport = rinfo.port

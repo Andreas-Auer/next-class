@@ -1,6 +1,7 @@
 /**
  * @license GPL LICENSE
- * Copyright (c) 2021 Thomas Michael Weissel
+ * Copyright (c) 2021 Thomas Michael Weissel (Next-Exam)
+ * Modifications for Next-Class (c) 2026 Andreas Auer
  * 
  * This program is free software: you can redistribute it and/or modify it 
  * under the terms of the GNU General Public License as published by the Free Software Foundation,
@@ -19,30 +20,26 @@ import crypto from 'crypto';
 import { Router } from 'express';
 import log from 'electron-log';
 import config from '../../../main/config.js';
-import { computeAppMac, NEXT_EXAM_API_TS_HEADER, NEXT_EXAM_API_MAC_HEADER, NEXT_EXAM_API_TS_WINDOW_MS } from '../../../../../shared/nextExamApiSecret.js';
+import { computeAppMac, API_TS_HEADER, API_MAC_HEADER, API_TS_WINDOW_MS } from '../../../../../shared/apiSecret.js';
 import controlRoutes from './server/control.js';
-import dataRoutes from './server/data.js';
 
 export const serverRouter = Router();
 
-/** Reject /server/* unless caller sends a fresh, valid HMAC proof of the shared app secret (OAuth browser redirects exempt). */
+/** Reject /server/* unless caller sends a fresh, valid HMAC proof of the shared app secret. */
 async function requireNextExamAppSecret(req, res, next) {
     if (req.method === 'OPTIONS') {
         return next();
     }
     const p = req.path || '';
     const from = `${req.socket?.remoteAddress || 'unknown'} ${req.get('user-agent') || 'no-ua'}`;
-    if (p === '/control/oauth' || p === '/control/msauth' || (config.exposeStudents && p === '/control/connectedstudentips')) {
-        return next();
-    }
-    const ts = req.get(NEXT_EXAM_API_TS_HEADER);
-    const got = req.get(NEXT_EXAM_API_MAC_HEADER);
+    const ts = req.get(API_TS_HEADER);
+    const got = req.get(API_MAC_HEADER);
     if (!ts || !got || typeof ts !== 'string' || typeof got !== 'string') {
         log.warn(`serverroutes @ requireNextExamAppSecret: missing headers (${req.method} ${p} from ${from})`);
         return res.status(403).json({ status: 'error', sender: 'server', message: 'forbidden' });
     }
     const tsNum = Number(ts);
-    if (!Number.isFinite(tsNum) || Math.abs(Date.now() - tsNum) > NEXT_EXAM_API_TS_WINDOW_MS) {
+    if (!Number.isFinite(tsNum) || Math.abs(Date.now() - tsNum) > API_TS_WINDOW_MS) {
         log.warn(`serverroutes @ requireNextExamAppSecret: timestamp out of window (${req.method} ${p} from ${from})`);
         return res.status(403).json({ status: 'error', sender: 'server', message: 'clockskew', code: 'CLOCK_SKEW' });
     }
@@ -58,6 +55,5 @@ async function requireNextExamAppSecret(req, res, next) {
 
 serverRouter.use(requireNextExamAppSecret);  //this requires the shared app secret to be sent in the header of the request
 serverRouter.use('/control/', controlRoutes);
-serverRouter.use('/data/', dataRoutes);
 
 
