@@ -35,6 +35,34 @@ const { t } = i18n.global;
 /** A student is considered offline after this long without a heartbeat. */
 export const STUDENT_OFFLINE_AFTER_MS = 20000;
 
+const MAX_EVENTS = 300;
+
+/** Session event log for the teacher (memory only, never written to disk). */
+export function addEvent(session, clientname, kind, detail = '', code = '') {
+    if (!session.events) session.events = [];
+    session.events.unshift({ at: Date.now(), clientname, kind, detail, code });   // code: translated by the dashboard
+    if (session.events.length > MAX_EVENTS) session.events.length = MAX_EVENTS;
+}
+
+/** Turn new reports of the student (program lock, firewall) into session events. */
+function collectStudentEvents(session, student, ci) {
+    for (const v of [...(ci.applock?.violations || [])].reverse()) {
+        if (v.at > (student.lastViolationAt || 0)) {
+            addEvent(session, student.clientname, 'program', v.name, v.action);
+            student.lastViolationAt = v.at;
+        }
+    }
+    for (const e of [...(ci.netlock?.events || [])].reverse()) {
+        if (['restored', 'restore-failed', 'apply-failed'].includes(e.kind) && e.at > (student.lastNetEventAt || 0)) {
+            addEvent(session, student.clientname, 'firewall', '', e.kind === 'restored' ? (e.detail || 'rules-missing') : 'check-failed');
+        }
+        student.lastNetEventAt = Math.max(student.lastNetEventAt || 0, e.at);
+    }
+    const problem = session.serverstatus.netlock?.active && ['notinstalled', 'unreachable', 'error'].includes(ci.netlock?.state) ? ci.netlock.state : null;
+    if (problem && problem !== student.netProblem) addEvent(session, student.clientname, 'netlock-problem', '', problem);
+    student.netProblem = problem;
+}
+
 // ---- open routes -----------------------------------------------------------
 
 router.get('/pong', (_req, res) => res.send('pong'));
@@ -96,6 +124,7 @@ router.post('/registerclient/:servername', async (req, res) => {
             screenlock: false,
             status: {},   // one-shot commands for this student, delivered with the next /update
         });
+        addEvent(session, clientname, 'joined');
         log.info(`control @ registerclient: "${clientname}" joined "${session.serverinfo.servername}"`);
         return res.send({ sender: 'server', message: t('control.registered'), status: 'success', token });
     }
@@ -108,6 +137,9 @@ router.post('/registerclient/:servername', async (req, res) => {
     existing.timestamp = now;
     existing.clientip = clientip;
     existing.version = version;
+    existing.quitAt = null;
+    existing.leftAt = null;
+    addEvent(session, clientname, 'reconnected');
     log.info(`control @ registerclient: "${clientname}" reconnected`);
     return res.send({ sender: 'server', message: t('control.reconnected'), status: 'success', token: existing.token, reconnected: true });
 });
@@ -155,16 +187,20 @@ router.post('/update', (req, res) => {
     // inactivity: student sends a duration (not a timestamp) so clock differences between devices do not matter
     student.unchangedSince = Number.isFinite(ci.screenUnchangedSeconds) ? student.timestamp - ci.screenUnchangedSeconds * 1000 : null;
     if (!ci.screenshotinterval) student.imageurl = false;
+    collectStudentEvents(session, student, ci);
 
     // locks end exactly at their end time while the teacher app is running
-    const nl = session.serverstatus.netlock;
-    if (nl?.active && Date.now() >= nl.until) {
-        session.serverstatus.netlock = { active: false };
-        log.info(`control @ update: internet lock of "${session.serverinfo.servername}" ended (end time reached)`);
+    for (const key of ['netlock', 'applock']) {
+        const lockState = session.serverstatus[key];
+        if (lockState?.active && lockState.until && Date.now() >= lockState.until) {
+            session.serverstatus[key] = { active: false };
+            log.info(`control @ update: ${key} of "${session.serverinfo.servername}" ended (end time reached)`);
+        }
     }
 
     const studentstatus = { ...student.status };
     if (student.status.kicked) {
+        addEvent(session, student.clientname, 'kicked');
         session.studentList = session.studentList.filter((s) => s !== student);
         log.info(`control @ update: "${student.clientname}" removed from "${session.serverinfo.servername}"`);
     }
@@ -195,13 +231,24 @@ router.post('/updatescreenshot', (req, res) => {
     res.send({ sender: 'server', status: 'success' });
 });
 
-/** Student left the session on purpose. */
+/**
+ * Student left the session (reason "leave") or closed the app (reason "quit").
+ * While a lock is active the tile stays visible with the reason, so the teacher notices it.
+ */
 router.post('/leave', (req, res) => {
     const auth = resolveStudent(req);
     if (!auth.ok) return authError(res, auth.reason);
     const { session, student } = auth;
-    session.studentList = session.studentList.filter((s) => s !== student);
-    log.info(`control @ leave: "${student.clientname}" left "${session.serverinfo.servername}"`);
+    const reason = req.body?.reason === 'quit' ? 'quit' : 'leave';
+    const lockActive = !!(session.serverstatus.netlock?.active || session.serverstatus.applock?.active);
+    addEvent(session, student.clientname, reason === 'quit' ? 'app-quit' : 'left');
+    if (reason === 'quit' || lockActive) {
+        student.timestamp = 0;   // shown as offline right away
+        if (reason === 'quit') student.quitAt = Date.now(); else student.leftAt = Date.now();
+    } else {
+        session.studentList = session.studentList.filter((s) => s !== student);
+    }
+    log.info(`control @ leave: "${student.clientname}" ${reason} "${session.serverinfo.servername}"`);
     res.send({ sender: 'server', status: 'success' });
 });
 

@@ -24,6 +24,8 @@
  * Safety: unpackaged builds (npm run dev, e2e tests) never close real programs - they only report.
  */
 
+import fs from 'fs';
+import path from 'path';
 import { app } from 'electron';
 import log from 'electron-log';
 import { classify } from '../../../../../shared/appCatalog.js';
@@ -34,6 +36,7 @@ const FORCE_AFTER_MS = 5000;           // polite close first, hard kill after th
 const REPORT_REPEAT_MS = 60000;        // the same program is reported at most once a minute
 const RUNNING_APPS_REFRESH_MS = 15000; // list of running programs for the teacher ("übernehmen")
 const MAX_VIOLATIONS = 20;
+const NO_CONTACT_GRACE_MS = 5 * 60 * 1000;   // without contact the lock lasts until end time + 5 min
 
 export class AppLock {
     constructor() {
@@ -49,13 +52,45 @@ export class AppLock {
         this.runningAppsAt = 0;
         this.fakeApps = null;          // e2e only
         this.connected = false;        // set by the communication handler
+        this.owner = null;             // "session@teacherIp" that set the lock - only it may lift it early
         this.onStateChange = null;     // callback(state) - e.g. show the student window with a countdown
         this.reportOnly = !app.isPackaged || process.env.NEXT_CLASS_APPLOCK_REPORT_ONLY === '1';
         if (this.reportOnly) log.info('applock: unpackaged build - programs are only reported, never closed');
     }
 
     start() {
+        this.restore();
         if (!this.timer) this.timer = setInterval(() => this.tick(), TICK_MS);
+    }
+
+    stateFile() {
+        return process.env.NEXT_CLASS_APPLOCK_STATE || path.join(app.getPath('userData'), 'applock-state.json');
+    }
+
+    /** Keep the lock across a restart of this app (not across a reboot: then it has expired or the teacher re-sends it). */
+    persist() {
+        try {
+            if (this.policy.active) fs.writeFileSync(this.stateFile(), JSON.stringify({ policy: this.policy, owner: this.owner }));
+            else fs.rmSync(this.stateFile(), { force: true });
+        } catch (e) {
+            log.warn(`applock @ persist: ${e.message}`);
+        }
+    }
+
+    restore() {
+        try {
+            const saved = JSON.parse(fs.readFileSync(this.stateFile(), 'utf8'));
+            if (saved?.policy?.active && saved.policy.until && Date.now() < saved.policy.until + NO_CONTACT_GRACE_MS) {
+                this.policy = saved.policy;
+                this.owner = saved.owner;
+                this.state = 'active';   // no new warning: the student already had it
+                log.info(`applock: resumed after app restart (until ${new Date(saved.policy.until).toLocaleTimeString()})`);
+            } else {
+                fs.rmSync(this.stateFile(), { force: true });
+            }
+        } catch {
+            // no saved lock
+        }
     }
 
     stop() {
@@ -64,13 +99,19 @@ export class AppLock {
         stopWatchers();
     }
 
-    /** New policy from the teacher (called with every heartbeat). */
-    setPolicy(policy) {
+    /**
+     * New policy from the teacher (called with every heartbeat). owner = "session@teacherIp".
+     * A session that did not set the lock (e.g. one a student started himself) cannot lift it.
+     */
+    setPolicy(policy, owner = null) {
         const next = policy && policy.active ? policy : { active: false };
         const wasActive = this.policy.active;
+        if (!next.active && wasActive && this.owner && owner !== this.owner) return;
         const changed = next.active !== wasActive || (next.active && next.policyId !== this.policy.policyId);
         this.policy = next;
+        if (next.active) this.owner = owner;
         if (!changed) return;
+        this.persist();
 
         if (next.active) {
             const grace = Math.max(0, Number(next.graceSeconds ?? 30));
@@ -85,10 +126,14 @@ export class AppLock {
         this.onStateChange?.(this.state);
     }
 
-    /** Not connected anymore: the lock ends with the session. */
-    clear() {
+    /** Teacher removed the student or ended the session (only the session that set the lock counts). */
+    lift(reason, owner = null) {
+        if (!this.policy.active) return;
+        if (this.owner && owner && owner !== this.owner) return;
+        log.info(`applock: lifted (${reason})`);
+        this.owner = null;
         this.setPolicy({ active: false });
-        this.violations = [];
+        this.persist();
     }
 
     status() {
@@ -97,6 +142,7 @@ export class AppLock {
             mode: this.policy.active ? this.policy.mode : null,
             graceRemaining: this.state === 'grace' ? Math.max(0, Math.ceil((this.graceUntil - Date.now()) / 1000)) : 0,
             allowedLabels: this.policy.active ? (this.policy.allowed || []).map((e) => e.label) : [],
+            until: this.policy.active ? this.policy.until || null : null,
             violations: this.violations.slice(0, MAX_VIOLATIONS),
             reportOnly: this.reportOnly,
             supported: allowlistSupported(),
@@ -146,6 +192,11 @@ export class AppLock {
                 this.runningAppsAt = now;
             }
 
+            // end time reached without the teacher lifting it (e.g. no contact): end + 5 min
+            if (this.policy.active && this.policy.until && now > this.policy.until + NO_CONTACT_GRACE_MS) {
+                this.lift('expired');
+                return;
+            }
             if (this.state === 'grace' && now >= this.graceUntil) {
                 this.state = 'active';
                 this.onStateChange?.(this.state);

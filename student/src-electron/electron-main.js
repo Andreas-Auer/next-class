@@ -108,6 +108,15 @@ function installTeacherCertificateVerifier() {
     });
 }
 
+// report "app closed" to the teacher before quitting (one short request, then quit for real)
+let quitReported = false;
+app.on('before-quit', (event) => {
+    if (quitReported || !multicastClient.clientinfo.token) return;
+    event.preventDefault();
+    quitReported = true;
+    Promise.resolve(IpcHandler.notifyQuit?.()).finally(() => app.quit());
+});
+
 app.on('window-all-closed', () => {
     CommHandler.stop();
     multicastClient.refreshExamsScheduler?.stop?.();

@@ -118,6 +118,26 @@
       "rules-missing": "Firewall-Regel entfernt – wiederhergestellt",
       "firewall-disabled": "Firewall ausgeschaltet – wiederhergestellt",
       "check-failed": "Firewall-Prüfung fehlgeschlagen"
+    },
+    "endlabel": "Sperren bis"
+  },
+  "events": {
+    "title": "Ereignisse",
+    "hint": "Nur für diese Unterrichtseinheit, wird nicht gespeichert.",
+    "none": "Noch keine Ereignisse.",
+    "quitat": "App beendet {time}",
+    "leftat": "Verlassen {time}",
+    "kind": {
+      "joined": "ist beigetreten",
+      "reconnected": "ist wieder verbunden",
+      "left": "hat die Unterrichtseinheit verlassen",
+      "app-quit": "hat Next-Class beendet",
+      "kicked": "wurde entfernt",
+      "offline": "Verbindung verloren",
+      "online": "wieder erreichbar",
+      "program": "Programmsperre",
+      "firewall": "Firewall verändert",
+      "netlock-problem": "Internetsperre nicht wirksam"
     }
   }
 }

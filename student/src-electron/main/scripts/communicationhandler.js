@@ -183,6 +183,7 @@ class CommHandler {
             if (data.message === 'removed') {   // teacher removed us (kick) or restarted the session
                 log.warn('communicationhandler @ requestUpdate: registration no longer known by the teacher');
                 NetLock.lift('removed', `${ci.servername}@${ci.serverip}`);
+                AppLock.lift('removed', `${ci.servername}@${ci.serverip}`);
                 this.forgetSession();
                 this.resetConnection();
                 return;
@@ -190,6 +191,7 @@ class CommHandler {
             if (data.message === 'notavailable') {   // session ended, teacher app still running
                 log.warn('communicationhandler @ requestUpdate: session not available anymore');
                 NetLock.lift('session-ended', `${ci.servername}@${ci.serverip}`);
+                AppLock.lift('session-ended', `${ci.servername}@${ci.serverip}`);
                 this.forgetSession();
                 this.multicastClient.beaconsLost = MAX_LOST_HEARTBEATS;
                 return;
@@ -214,12 +216,13 @@ class CommHandler {
         if (studentstatus.kicked) {
             log.warn('communicationhandler @ processUpdate: removed from the session by the teacher');
             NetLock.lift('removed', `${ci.servername}@${ci.serverip}`);
+            AppLock.lift('removed', `${ci.servername}@${ci.serverip}`);
             this.forgetSession();
             this.resetConnection();
             return;
         }
 
-        AppLock.setPolicy(serverstatus.applock);
+        AppLock.setPolicy(serverstatus.applock, `${ci.servername}@${ci.serverip}`);
         NetLock.sync(serverstatus.netlock, { hostip: this.config.hostip, teacherIp: ci.serverip, servername: ci.servername });   // async, guarded
 
         if (serverstatus.screenslocked && !ci.screenlock) this.activateScreenlock();
@@ -265,7 +268,7 @@ class CommHandler {
         ci.screenUnchangedSeconds = null;
         this.activity.reset();
         this.idleForced = false;
-        AppLock.clear();         // the program lock ends with the session
+        // the program lock is NOT lifted here: after a network dropout or leaving on purpose it lasts until end time + 5 min
         this.killScreenlock();   // never leave a student locked without a teacher
     }
 

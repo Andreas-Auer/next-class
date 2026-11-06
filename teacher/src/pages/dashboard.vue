@@ -12,6 +12,9 @@
     <div class="w-100 p-3 text-white bg-dark d-flex align-items-center flex-shrink-0" style="height: 63px;">
         <img src="/src/assets/img/svg/shield-lock-fill.svg" class="white me-2" width="32" height="32">
         <span class="me-auto" style="font-size: 23px;">Next-Class</span>
+        <button class="btn btn-outline-light btn-sm me-2" data-e2e="events-open" @click="openEvents">
+            {{ $t('events.title') }} <span v-if="events.length" class="badge bg-secondary ms-1">{{ events.length }}</span>
+        </button>
         <button class="btn btn-danger btn-sm me-3" data-e2e="session-end" @click="endSession">
             <img src="/src/assets/img/svg/stock_exit.svg" class="white me-1" width="16" height="16"> {{ $t('dashboard.end') }}
         </button>
@@ -20,7 +23,7 @@
 
     <div class="d-flex flex-grow-1" style="min-height: 0;">
         <!-- Sidebar: join data + session controls -->
-        <div class="p-3 text-white bg-dark h-100 d-flex flex-column" style="width: 260px; min-width: 260px;">
+        <div class="p-3 text-white bg-dark h-100 d-flex flex-column overflow-auto" style="width: 260px; min-width: 260px;">
             <div class="infobox mb-2">
                 <div class="small text-secondary">{{ $t('dashboard.session') }}</div>
                 <div class="fs-5 text-truncate" :title="servername">{{ servername }}</div>
@@ -62,17 +65,18 @@
                 <label for="sortidle" class="form-check-label">{{ $t('dashboard.sortidle') }}</label>
             </div>
 
+            <!-- end time for new locks (internet + programs) -->
+            <label class="small text-secondary mt-3 mb-1">{{ $t('netlock.endlabel') }}</label>
+            <select class="form-select form-select-sm mb-1" v-model="netEndMode" data-e2e="netlock-end">
+                <option value="50">{{ $t('netlock.plusminutes', { m: 50 }) }}</option>
+                <option value="100">{{ $t('netlock.plusminutes', { m: 100 }) }}</option>
+                <option value="time">{{ $t('netlock.attime') }}</option>
+            </select>
+            <input v-if="netEndMode === 'time'" type="time" class="form-control form-control-sm mb-1" v-model="netEndTime" data-e2e="netlock-time">
+
             <!-- internet lock -->
-            <div class="lockbox mt-3 p-2" :class="{ active: netlock.active }">
+            <div class="lockbox mt-2 p-2" :class="{ active: netlock.active }">
                 <div class="small fw-bold mb-1">{{ $t('netlock.title') }}</div>
-                <template v-if="!netlock.active">
-                    <select class="form-select form-select-sm mb-1" v-model="netEndMode" data-e2e="netlock-end">
-                        <option value="50">{{ $t('netlock.plusminutes', { m: 50 }) }}</option>
-                        <option value="100">{{ $t('netlock.plusminutes', { m: 100 }) }}</option>
-                        <option value="time">{{ $t('netlock.attime') }}</option>
-                    </select>
-                    <input v-if="netEndMode === 'time'" type="time" class="form-control form-control-sm mb-1" v-model="netEndTime" data-e2e="netlock-time">
-                </template>
                 <button class="btn btn-sm w-100" :class="netlock.active ? 'btn-warning' : 'btn-outline-warning'" data-e2e="netlock-toggle" @click="toggleNetLock">
                     {{ netlock.active ? $t('netlock.lift') : $t('netlock.activate') }}
                 </button>
@@ -96,7 +100,7 @@
                 <button class="btn btn-sm w-100" :class="applock.active ? 'btn-warning' : 'btn-outline-warning'" data-e2e="applock-toggle" @click="toggleAppLock">
                     {{ applock.active ? $t('applock.lift') : $t('applock.activate') }}
                 </button>
-                <div v-if="applock.active" class="small mt-1 text-warning">{{ $t('applock.activesince', { time: formatTime(applock.startedAt) }) }}</div>
+                <div v-if="applock.active" class="small mt-1 text-warning" data-e2e="applock-until">{{ $t('netlock.until', { time: formatTime(applock.until) }) }}</div>
             </div>
 
             <div class="mt-auto small text-secondary">
@@ -127,6 +131,8 @@
                         </div>
                         <div class="d-flex flex-wrap gap-1 mt-1">
                             <span v-if="student.online" class="badge bg-success" data-e2e="badge-online">{{ $t('dashboard.online') }}</span>
+                            <span v-else-if="student.quitAt" class="badge bg-danger" data-e2e="badge-quit">{{ $t('events.quitat', { time: formatTime(student.quitAt) }) }}</span>
+                            <span v-else-if="student.leftAt" class="badge bg-danger" data-e2e="badge-left">{{ $t('events.leftat', { time: formatTime(student.leftAt) }) }}</span>
                             <span v-else class="badge bg-secondary" data-e2e="badge-offline">{{ $t('dashboard.disconnectedsince', { time: formatTime(student.lastSeen) }) }}</span>
                             <span v-if="idleSeconds(student) !== null" class="badge idlebadge" data-e2e="badge-idle"
                                   :title="$t('dashboard.idlehint')">⏸ {{ formatDuration(idleSeconds(student)) }}</span>
@@ -146,6 +152,23 @@
                                   class="badge bg-danger" data-e2e="badge-nopermission" :title="$t('dashboard.nopermissionhint')">{{ $t('dashboard.nopermission') }}</span>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- event log (memory only) -->
+    <div v-if="eventsOpen" class="nc-overlay" @click.self="eventsOpen = false">
+        <div class="card shadow" style="width: min(720px, 92vw); max-height: 80vh;" data-e2e="events-dialog">
+            <div class="card-header d-flex"><strong class="me-auto">{{ $t('events.title') }}</strong>
+                <button class="btn-close" @click="eventsOpen = false"></button></div>
+            <div class="card-body overflow-auto small">
+                <p class="text-secondary">{{ $t('events.hint') }}</p>
+                <div v-if="!events.length" class="text-secondary">{{ $t('events.none') }}</div>
+                <div v-for="(e, i) in events" :key="i" class="d-flex border-bottom py-1" :class="{ 'text-danger': importantEvent(e) }" :data-e2e="`event-${e.kind}`">
+                    <span class="me-3 text-secondary" style="width: 44px;">{{ formatTime(e.at) }}</span>
+                    <strong class="me-3" style="width: 140px;">{{ e.clientname }}</strong>
+                    <span>{{ $t(`events.kind.${e.kind}`) }}<span v-if="eventDetail(e)"> – {{ eventDetail(e) }}</span></span>
                 </div>
             </div>
         </div>
@@ -204,6 +227,8 @@ export default {
             applockMode: 'kill',
             pickerOpen: false,
             runningAppsOf: null,
+            events: [],
+            eventsOpen: false,
             pollTimer: null,
             clockTimer: null,
         }
@@ -263,16 +288,12 @@ export default {
                 if (r.status === 'success') this.netlock = r.netlock
                 return
             }
+            const capped = this.validatedUntil()
+            if (!capped) return
             const until = this.netLockUntil()
-            const maxUntil = Date.now() + 4 * 60 * 60_000
-            if (!until || until <= Date.now() + 60_000) {
-                this.$swal.fire({ title: this.$t('general.error'), text: this.$t('netlock.endinpast'), icon: 'error' })
-                return
-            }
-            const capped = Math.min(until, maxUntil)
             const confirm = await this.$swal.fire({
                 title: this.$t('netlock.activate'),
-                html: this.$t('netlock.confirm', { time: this.formatTime(capped) }) + (until > maxUntil ? `<br><br>${this.$t('netlock.capped')}` : ''),
+                html: this.$t('netlock.confirm', { time: this.formatTime(capped) }) + (until > capped ? `<br><br>${this.$t('netlock.capped')}` : ''),
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonText: this.$t('netlock.activate'),
@@ -282,6 +303,15 @@ export default {
             const r = await window.ipcRenderer.invoke('setNetLock', { servername: this.servername, active: true, until: capped })
             if (r.status === 'success') this.netlock = r.netlock
             else this.$swal.fire({ title: this.$t('general.error'), text: r.message, icon: 'error' })
+        },
+        /** End time from the selector, capped at 4 hours; shows an error and returns 0 when invalid. */
+        validatedUntil() {
+            const until = this.netLockUntil()
+            if (!until || until <= Date.now() + 60_000) {
+                this.$swal.fire({ title: this.$t('general.error'), text: this.$t('netlock.endinpast'), icon: 'error' })
+                return 0
+            }
+            return Math.min(until, Date.now() + 4 * 60 * 60_000)
         },
         /** Last "rules restored" event of the helper within the violation window. */
         recentTamper(student) {
@@ -326,22 +356,26 @@ export default {
                 return
             }
             const tplName = this.applockData.templates.find((t) => t.id === this.selectedTemplateId)?.name || ''
+            const until = this.validatedUntil()
+            if (!until) return
             const confirm = await this.$swal.fire({
                 title: this.$t('applock.activate'),
                 html: this.$t(this.applockMode === 'kill' ? 'applock.confirmkill' : 'applock.confirmreport', { n: this.allowedIds.length })
+                    + `<br>${this.$t('netlock.until', { time: this.formatTime(until) })}`
                     + (tplName ? `<br><b>${tplName.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])}</b>` : ''),
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonText: this.$t('applock.activate'),
                 cancelButtonText: this.$t('general.cancel'),
             })
-            if (confirm.isConfirmed) await this.sendAppLock(true)
+            if (confirm.isConfirmed) await this.sendAppLock(true, until)
         },
-        async sendAppLock(active) {
+        async sendAppLock(active, until = this.applock.until) {
             const tplName = this.applockData.templates.find((t) => t.id === this.selectedTemplateId)?.name || ''
             const result = await window.ipcRenderer.invoke('setAppLock', {
-                servername: this.servername, active, mode: this.applockMode, allowedIds: [...this.allowedIds], templateName: tplName,
+                servername: this.servername, active, mode: this.applockMode, allowedIds: [...this.allowedIds], templateName: tplName, until,
             })
+            if (result.status !== 'success') this.$swal.fire({ title: this.$t('general.error'), text: result.message, icon: 'error' })
             if (result.status === 'success') this.applock = result.applock
         },
         recentViolation(student) {
@@ -358,7 +392,21 @@ export default {
         formatTime(ts) {
             return new Date(ts).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' })
         },
+        async openEvents() {
+            this.events = await window.ipcRenderer.invoke('sessionEvents', this.servername)
+            this.eventsOpen = true
+        },
+        eventDetail(e) {
+            if (e.kind === 'program') return `${e.detail} (${this.$t(`applock.action.${e.code}`)})`
+            if (e.kind === 'firewall') return this.$t(`netlock.event.${e.code}`)
+            if (e.kind === 'netlock-problem') return this.$t(`netlock.problem.${e.code}`)
+            return e.detail
+        },
+        importantEvent(e) {
+            return ['app-quit', 'program', 'firewall', 'netlock-problem', 'offline'].includes(e.kind)
+        },
         async fetchStudents() {
+            this.events = await window.ipcRenderer.invoke('sessionEvents', this.servername)
             const result = await window.ipcRenderer.invoke('studentlist', this.servername)
             if (result.status !== 'success') return
             this.students = result.studentlist.sort((a, b) => a.clientname.localeCompare(b.clientname))

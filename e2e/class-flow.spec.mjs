@@ -236,6 +236,40 @@ test('student joins with PIN, reconnects, gets locked and unlocked, then leaves'
       await expect(card().locator('[data-e2e="badge-locked"]')).toBeHidden({ timeout: 20_000 });
     });
 
+    await test.step('leaving during a program lock does not end it; tile stays; rejoin works', async () => {
+      const appLockState = async () => (await student.evaluate(() => window.ipcRenderer.invoke('getinfoasync'))).clientinfo.applock?.state;
+      await teacher.locator('[data-e2e="applock-mode"]').selectOption('report');
+      await teacher.locator('[data-e2e="applock-toggle"]').click();
+      await teacher.locator('.swal2-confirm').click();
+      await expect(teacher.locator('[data-e2e="applock-until"]')).toBeVisible();
+      await expect.poll(appLockState, { timeout: 15_000 }).not.toBe('off');
+
+      await student.locator('[data-e2e="leave"]').click();
+      await student.locator('.swal2-confirm').click();
+      await expect(student.locator('[data-e2e="join"]')).toBeVisible({ timeout: 20_000 });
+      await expect(card().locator('[data-e2e="badge-left"]')).toBeVisible({ timeout: 10_000 });   // tile kept, teacher sees it
+      await student.waitForTimeout(3_000);
+      expect(await appLockState()).not.toBe('off');                                              // lock continues
+
+      await student.locator('[data-e2e="join"]').click();                                       // rejoin with the same name
+      await expect(student.locator('[data-e2e="connected-card"]')).toBeVisible({ timeout: 20_000 });
+      await closeSwal(student);
+      await expect(card().locator('[data-e2e="badge-online"]')).toBeVisible({ timeout: 15_000 });
+
+      await teacher.locator('[data-e2e="applock-toggle"]').click();                             // teacher lifts it
+      await expect.poll(appLockState, { timeout: 15_000 }).toBe('off');
+    });
+
+    await test.step('event log lists what happened', async () => {
+      await teacher.locator('[data-e2e="events-open"]').click();
+      const dialog = teacher.locator('[data-e2e="events-dialog"]');
+      for (const kind of ['joined', 'program', 'firewall', 'left', 'reconnected']) {
+        await expect(dialog.locator(`[data-e2e="event-${kind}"]`).first()).toBeVisible();
+      }
+      await shot(teacher, '9-lehrer-ereignisse');
+      await dialog.locator('.btn-close').click();
+    });
+
     await test.step('student leaves -> teacher list is empty', async () => {
       await student.locator('[data-e2e="leave"]').click();
       await student.locator('.swal2-confirm').click();

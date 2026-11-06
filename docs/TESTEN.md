@@ -42,13 +42,12 @@ nie geschlossen – damit beim Entwickeln nichts verloren geht. Echtes Schließe
 installierten App (`npm --prefix student run build:win:msi` bzw. `build:mac:arm64`).
 Zum ersten Ausprobieren in der Klasse den Modus „Nur melden“ wählen und die Meldungen ansehen.
 
-## Bekannte Grenzen (Stand Schritt 5)
+## Bekannte Grenzen (Stand Schritt 9)
 
 - Windows- und Linux-Teile der Programmsperre sind noch nicht auf echten Geräten getestet.
 - Linux mit Wayland: nur die Blockliste (Chat, Spiele …) wird durchgesetzt, keine Freigabeliste.
-- Verbindung zur Lehrkraft verloren → Programmsperre endet derzeit mit der Verbindung
-  (die vereinbarte Regel „bis Endzeit + 5 min“ kommt mit Schritt 9).
-- Schüler können die App beenden – Erkennung und Meldung kommen mit Schritt 8.
+- Schüler können die App beenden: Die Lehrkraft sieht „App beendet“; die Internetsperre bleibt (Hilfsdienst),
+  die Programmsperre wirkt erst wieder, wenn die App neu gestartet wird.
 - Die Internetsperre ist nur im Probemodus getestet (Regeln werden berechnet, aber nicht gesetzt).
   Vor dem ersten Klasseneinsatz unbedingt auf je einem Windows-, Mac- und ggf. Linux-Gerät von Hand testen
   (Tabelle oben). Zum Rückgängigmachen: Neustart, oder `nextclass-helper uninstall` als Administrator.

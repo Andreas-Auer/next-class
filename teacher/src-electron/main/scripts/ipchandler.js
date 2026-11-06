@@ -21,7 +21,7 @@ import ip from 'ip';
 import log from 'electron-log';
 import { gateway4sync } from '../../../../shared/defaultGateway.js';
 import MulticastServer from './multicastserver.js';
-import { STUDENT_OFFLINE_AFTER_MS } from '../../server/src/routes/server/control.js';
+import { STUDENT_OFFLINE_AFTER_MS, addEvent } from '../../server/src/routes/server/control.js';
 import i18n from '../../../src/locales/locales.js';
 import crypto from 'crypto';
 import AppLockStore from './applockStore.js';
@@ -71,6 +71,8 @@ class IpcHandler {
             platform: student.platform || null,
             applock: student.applock || null,
             netlock: student.netlock || null,
+            quitAt: student.quitAt || null,
+            leftAt: student.leftAt || null,
             unchangedSince: student.unchangedSince ?? null,
         };
     }
@@ -124,6 +126,8 @@ class IpcHandler {
                 .map((s) => ({ id: s.id, servername: s.servername, serverip: s.serverip }));
         });
 
+        ipcMain.handle('sessionEvents', (_event, servername) => this.session(servername)?.events || []);
+
         ipcMain.handle('getSessionInfo', (_event, servername) => {
             const session = this.session(servername);
             if (!session) return { status: 'error' };
@@ -140,6 +144,13 @@ class IpcHandler {
             const session = this.session(servername);
             if (!session) return { status: 'error', studentlist: [] };
             const now = Date.now();
+            // connection lost / back: detected here because the dashboard polls every 2 s
+            for (const s of session.studentList) {
+                const online = now - s.timestamp <= STUDENT_OFFLINE_AFTER_MS;
+                if (s.wasOnline && !online && !s.quitAt && !s.leftAt) addEvent(session, s.clientname, 'offline');
+                if (s.wasOnline === false && online) addEvent(session, s.clientname, 'online');
+                s.wasOnline = online;
+            }
             return { status: 'success', studentlist: session.studentList.map((s) => this.publicStudent(s, now)) };
         });
 
@@ -195,6 +206,9 @@ class IpcHandler {
                 log.info(`ipchandler @ setAppLock: ${payload.servername} -> lifted`);
                 return { status: 'success', applock: session.serverstatus.applock };
             }
+            const now = Date.now();
+            const until = Math.min(Number(payload.until) || 0, now + MAX_LOCK_MS);
+            if (until <= now + 60_000) return { status: 'error', message: t('netlock.endinpast') };
             const allowedIds = [...new Set(payload.allowedIds || [])];
             session.serverstatus.applock = {
                 active: true,
@@ -204,7 +218,8 @@ class IpcHandler {
                 templateName: String(payload.templateName || ''),
                 allowedIds,
                 allowed: resolveEntries(allowedIds, AppLockStore.load().customEntries),
-                startedAt: Date.now(),
+                startedAt: now,
+                until,
             };
             log.info(`ipchandler @ setAppLock: ${payload.servername} -> ${session.serverstatus.applock.mode}, ${allowedIds.length} programs allowed`);
             return { status: 'success', applock: session.serverstatus.applock };

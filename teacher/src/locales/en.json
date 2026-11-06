@@ -118,6 +118,26 @@
       "rules-missing": "Firewall rule removed – restored",
       "firewall-disabled": "Firewall switched off – restored",
       "check-failed": "Firewall check failed"
+    },
+    "endlabel": "Lock until"
+  },
+  "events": {
+    "title": "Events",
+    "hint": "Only for this session, not saved.",
+    "none": "No events yet.",
+    "quitat": "App closed {time}",
+    "leftat": "Left {time}",
+    "kind": {
+      "joined": "joined",
+      "reconnected": "reconnected",
+      "left": "left the session",
+      "app-quit": "closed Next-Class",
+      "kicked": "was removed",
+      "offline": "connection lost",
+      "online": "reachable again",
+      "program": "program lock",
+      "firewall": "firewall changed",
+      "netlock-problem": "internet lock not effective"
     }
   }
 }

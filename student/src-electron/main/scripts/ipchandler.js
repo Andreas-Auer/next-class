@@ -265,6 +265,20 @@ class IpcHandler {
             ipcMain.handle('e2e-fake-apps', (_e, apps) => { AppLock.fakeApps = apps; AppLock.runningAppsAt = 0; });
         }
 
+        /** Tell the teacher that the app is being closed (best effort, max 1.5 s). */
+        this.notifyQuit = async () => {
+            const ci = this.multicastClient.clientinfo;
+            if (!ci.token || !ci.serverip) return;
+            try {
+                await examApiFetch(this.CommHandler.teacherUrl('leave'), {
+                    method: 'POST',
+                    headers: this.CommHandler.authHeaders(),
+                    body: JSON.stringify({ clientinfo: { servername: ci.servername }, reason: 'quit' }),
+                    signal: AbortSignal.timeout(1500),
+                });
+            } catch { /* teacher not reachable */ }
+        };
+
         /** One-time installation of the helper for the internet lock (shows the system's admin prompt). */
         ipcMain.handle('netlock-install', (event) => (this.fromMainWindow(event) ? NetLock.install() : { status: 'error' }));
 
@@ -285,8 +299,7 @@ class IpcHandler {
             }
             log.info('ipchandler @ disconnect: student left the session');
             this.CommHandler.forgetSession();
-            this.CommHandler.resetConnection();
-            this.multicastClient.reconnectToken = false;
+            this.CommHandler.resetConnection();   // keeps the reconnect token: rejoining with the same name stays possible
             return { status: 'success' };
         });
     }

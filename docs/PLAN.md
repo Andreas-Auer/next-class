@@ -11,8 +11,8 @@ Jeder Schritt bekommt einen eigenen Branch (`step-N-…`) und eine Testanleitung
 | 5 | Programmsperre mit Freigabeliste, Vorlagen, Katalog und Vorwarnung (ohne Admin-Rechte) | erledigt (`step-5-applock`); Windows/Linux noch nicht auf echten Geräten getestet |
 | 6 | Hilfsdienst (Go, Einrichtung per Admin-Abfrage aus der Schüler-App, lokale API, Aufräumen beim Start, Endzeit) | erledigt (`step-6-netlock`), Probemodus getestet |
 | 7 | Internetsperre: Windows-Firewall, dazu bereits macOS pf und Linux nftables | erledigt (`step-6-netlock`); **noch nicht auf echten Geräten getestet** |
-| 8 | Watchdog und Ereignismeldungen (Regel entfernt, App beendet, gesperrtes Programm, Verbindung weg) | offen |
-| 9 | Automatische Freigabe (Endzeit + 5 min, max. 4 h, Neustart) | offen |
+| 8 | Ereignisprotokoll (beigetreten, getrennt, App beendet, Programmsperre, Firewall verändert) | erledigt (`step-8-events`) |
+| 9 | Endzeit für beide Sperren (ohne Kontakt + 5 min, max. 4 h, Neustart = frei), nur die sperrende Einheit hebt vorzeitig auf | erledigt (`step-8-events`) |
 | 10 | macOS (pf), danach Linux (nftables) | offen |
 | 11 | Freigabeliste für Domains und IPs (Lizenzserver) | offen |
 | 12 | Co-Lehrkräfte: Beitritt mit Lehrer-Code und Bestätigung, Synchronisation | offen |
