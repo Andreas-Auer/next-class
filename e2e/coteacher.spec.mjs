@@ -131,3 +131,92 @@ test('co-teacher joins with code + approval and controls the session', async () 
     await fs.rm(profileRoot, { recursive: true, force: true });
   }
 });
+
+test('host app crashes: co-teacher takes over, student reconnects, lock stays', async () => {
+  test.setTimeout(240_000);
+  const sessionName = `failover-${Date.now().toString().slice(-6)}`;
+  const profileRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'next-class-e2e-failover-'));
+  const launch = (main, dir, port) => electron.launch({
+    args: [`--user-data-dir=${path.join(profileRoot, dir)}`, main],
+    cwd: path.dirname(path.dirname(path.dirname(path.dirname(main)))),
+    env: { ...process.env, DEBUG: '1', NXE_E2E_SERVER_API_PORT: port, NEXT_CLASS_APPLOCK_FILE: path.join(profileRoot, `${dir}-applock.json`) },
+  });
+  let hostApp, coApp, studentApp;
+
+  try {
+    let host, co, student;
+    const lockVisible = () => studentApp.windows().some((p) => p.url().includes('#/lock'));
+
+    await test.step('host + co-teacher + student, screens locked', async () => {
+      hostApp = await launch(teacherMain, 'host', hostPort);
+      host = await getAppWindow(hostApp);
+      await confirmInterfacePicker(host);
+      await host.locator('[data-e2e="session-name"]').fill(sessionName);
+      await host.locator('[data-e2e="session-start"]').click();
+      await expect(host.locator('[data-e2e="teacher-code"]')).toHaveText(/^\d{6}$/, { timeout: 15_000 });
+      const teacherCode = (await host.locator('[data-e2e="teacher-code"]').textContent()).trim();
+      const pin = (await host.locator('[data-e2e="session-pin"]').textContent()).trim();
+
+      coApp = await launch(teacherMain, 'co', coPort);
+      co = await getAppWindow(coApp);
+      await confirmInterfacePicker(co);
+      await co.locator('[data-e2e="cojoin-address"]').fill(`127.0.0.1:${hostPort}`);
+      await co.locator('[data-e2e="cojoin-search"]').click();
+      await co.locator(`[data-e2e="cojoin-${sessionName}"]`).first().click();
+      await co.locator('#co-name').fill('Frau Huber');
+      await co.locator('#co-code').fill(teacherCode);
+      await co.locator('.swal2-confirm').click();
+      await expect(host.locator('.swal2-title')).toContainText('Co-Lehrkraft', { timeout: 15_000 });
+      await host.locator('.swal2-confirm').click();
+      await expect(co.locator('[data-e2e="coteacher-leave"]')).toBeVisible({ timeout: 15_000 });
+
+      studentApp = await launch(studentMain, 'student', hostPort);
+      student = await getAppWindow(studentApp);
+      await confirmInterfacePicker(student);
+      await student.locator('[data-e2e="name"]').fill('failover-schueler');
+      await student.locator('[data-e2e="pin"]').fill(pin);
+      const manual = student.locator('[data-e2e="manual-search"]');
+      if (!(await manual.isChecked())) await manual.check();
+      await student.locator('[data-e2e="server-ip"]').fill('127.0.0.1');
+      await expect(student.locator(`[data-e2e="session-${sessionName}"]`)).toBeVisible({ timeout: 30_000 });
+      await student.locator('[data-e2e="join"]').click();
+      await expect(student.locator('[data-e2e="connected-card"]')).toBeVisible({ timeout: 20_000 });
+      // the co-teacher must have learned about the student (replica) and the student about the co-teacher (backups)
+      await co.waitForTimeout(12_000);
+
+      await host.locator('[data-e2e="lock-screens"]').click();
+      await expect.poll(lockVisible, { timeout: 20_000 }).toBe(true);
+    });
+
+    await test.step('host crashes -> co-teacher becomes host', async () => {
+      hostApp.process().kill('SIGKILL');
+      hostApp = null;
+      await expect(co.locator('.swal2-title')).toContainText('leitest jetzt', { timeout: 60_000 });
+      await co.locator('.swal2-confirm').click();
+      await expect(co.locator('[data-e2e="role"]')).toHaveText('Lehrer');
+      await expect(co.locator('[data-e2e="session-end"]')).toBeVisible();
+    });
+
+    await test.step('student stays locked and reconnects to the new host by itself', async () => {
+      expect(lockVisible()).toBe(true);
+      const tile = co.locator('[data-e2e="student-failover-schueler"]');
+      await expect(tile.locator('[data-e2e="badge-online"]')).toBeVisible({ timeout: 90_000 });
+      await shot(co, '11-uebernahme');
+    });
+
+    await test.step('new host unlocks and ends the session', async () => {
+      await expect(co.locator('[data-e2e="lock-screens"]')).toHaveClass(/btn-warning/);   // lock state was taken over
+      await co.locator('[data-e2e="lock-screens"]').click();
+      await expect.poll(lockVisible, { timeout: 20_000 }).toBe(false);
+      await co.locator('[data-e2e="session-end"]').click();
+      await co.locator('.swal2-confirm').click();
+      await expect(co.locator('[data-e2e="session-start"]')).toBeVisible({ timeout: 10_000 });
+    });
+  } finally {
+    for (const app of [studentApp, coApp, hostApp]) {
+      await app?.evaluate(({ BrowserWindow }) => { for (const w of BrowserWindow.getAllWindows()) w.allowexit = true; }).catch(() => {});
+      await app?.close().catch(() => {});
+    }
+    await fs.rm(profileRoot, { recursive: true, force: true });
+  }
+});

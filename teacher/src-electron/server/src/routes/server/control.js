@@ -211,9 +211,12 @@ router.post('/update', (req, res) => {
         sender: 'server',
         status: 'success',
         serverstatus: {
+            sessionId: session.serverinfo.id,   // stays the same after a host failover
             screenslocked: !!session.serverstatus.screenslocked,
             idlethreshold: session.serverstatus.idlethreshold,
             applock: session.serverstatus.applock || { active: false },
+            // other teacher apps of this session: the student reconnects there if this host fails
+            teachers: (session.coTeachers || []).filter((c) => c.ip && Date.now() - c.lastSeen < 30000).map((c) => ({ ip: c.ip, port: c.apiPort })),
             netlock: session.serverstatus.netlock || { active: false },
             screenshotinterval: session.serverstatus.screenshotinterval,
         },

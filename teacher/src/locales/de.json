@@ -142,7 +142,8 @@
       "program": "Programmsperre",
       "firewall": "Firewall verändert",
       "netlock-problem": "Internetsperre nicht wirksam",
-      "teacher-joined": "ist als Co-Lehrkraft beigetreten"
+      "teacher-joined": "ist als Co-Lehrkraft beigetreten",
+      "host-failover": "hat die Unterrichtseinheit übernommen (Host ausgefallen)"
     }
   },
   "coteacher": {
@@ -171,6 +172,12 @@
       "NOT_FOUND": "Unterrichtseinheit nicht gefunden.",
       "TOO_MANY": "Zu viele offene Anfragen – bitte später erneut versuchen.",
       "MISSING_NAME": "Bitte deinen Namen eingeben."
-    }
+    },
+    "you": "diese Lehrer-App",
+    "tookover": "Du leitest jetzt die Unterrichtseinheit",
+    "tookovertext": "Die Lehrer-App des Hosts war nicht mehr erreichbar. Deine Lehrer-App hat die Unterrichtseinheit übernommen; die Schülergeräte verbinden sich automatisch neu.",
+    "takenover": "Unterrichtseinheit wurde übernommen",
+    "takenovertext": "Während deine Lehrer-App nicht erreichbar war, hat eine Co-Lehrkraft die Unterrichtseinheit übernommen ({by}). Du kannst als Co-Lehrkraft wieder beitreten.",
+    "newhost": "Neuer Host"
   }
 }

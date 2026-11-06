@@ -54,13 +54,18 @@ class MulticastServer {
      * @param servername the given name of the server (for example "math")
      * @param pin the pin needed to register as student
      */
-    init (servername, pin) {
+    /**
+     * @param opts.id     keep the session id when a co-teacher takes over after a host failure
+     * @param opts.epoch  increases with every takeover; the highest epoch leads the session
+     */
+    init (servername, pin, opts = {}) {
         this.server = createSocket('udp4')
         this.serverinfo = {
             servername: servername,   //should be unique if several servers are allowed
             pin: pin,
             timestamp: 0,
-            id: crypto.randomUUID(),
+            id: opts.id || crypto.randomUUID(),
+            epoch: opts.epoch || 0,
             ip: config.hostip,
             servertoken: `server-${crypto.randomUUID()}`,
             version: config.version
@@ -98,6 +103,8 @@ class MulticastServer {
             id: this.serverinfo.id,
             ip: this.serverinfo.ip,
             tlsFingerprint: config.tlsCertificateFingerprint,
+            apiPort: config.serverApiPort,
+            epoch: this.serverinfo.epoch || 0,
             version: config.version
         }
         const preparedMessage = new Buffer.from(JSON.stringify(message))

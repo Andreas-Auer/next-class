@@ -121,7 +121,7 @@ class MulticastClient {
         try { serverInfo = JSON.parse(String(message)) } catch { return }   // ignore foreign or broken packets
         if (!serverInfo || typeof serverInfo.servername !== 'string' || !serverInfo.id) return
         serverInfo.serverip = rinfo.address
-        this.allowTeacherCertificateHost(rinfo.address, serverInfo.tlsFingerprint)
+        this.allowTeacherCertificateHost(`${rinfo.address}:${serverInfo.apiPort || config.serverApiPort}`, serverInfo.tlsFingerprint)
         serverInfo.serverport = rinfo.port
         serverInfo.reachable = true
         serverInfo.timestamp = new Date().getTime()   //record timestamp of last message from server (ignore servertimestamp because it may have a different system time)

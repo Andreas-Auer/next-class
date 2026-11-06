@@ -61,6 +61,9 @@ online geprüft), danach Internet- und Programmsperre aktivieren.
 - Die zweite Lehrkraft öffnet ihre Lehrer-App → **Als Co-Lehrkraft beitreten** (oder Lehrer-IP eingeben),
   gibt ihren Namen und den Lehrer-Code ein.
 - Die erste Lehrkraft bestätigt mit **Zulassen**. Danach steuern beide gleichberechtigt.
+- Fällt die Lehrer-App der ersten Lehrkraft aus (Akku leer, Laptop zugeklappt), übernimmt nach etwa
+  20 Sekunden automatisch die Co-Lehrkraft. Die Schülergeräte verbinden sich von selbst neu, Sperren bleiben bestehen.
+- Kommt die erste Lehrkraft zurück, tritt sie einfach wieder als Co-Lehrkraft bei.
 
 ## 4. Wann ist ein Schülergerät wieder frei?
 

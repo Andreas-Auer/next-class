@@ -56,7 +56,9 @@ router.post('/join/:servername', async (req, res) => {
         return res.send({ status: 'error', code: 'TOO_MANY' });
     }
     const requestId = crypto.randomUUID();
-    session.pendingJoins.set(requestId, { name, ip: req.socket?.remoteAddress || '', at: Date.now(), status: 'pending' });
+    const apiPort = Number(payload.apiPort) > 0 && Number(payload.apiPort) < 65536 ? Number(payload.apiPort) : config.serverApiPort;
+    const ip = String(req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+    session.pendingJoins.set(requestId, { name, ip, apiPort, at: Date.now(), status: 'pending' });
     log.info(`teacher @ join: "${name}" asks to join "${req.params.servername}"`);
     return res.send({ status: 'pending', requestId });
 });
@@ -70,6 +72,17 @@ router.post('/joinstatus', (req, res) => {
         return res.send({ status: 'approved', token: r.token, servername: req.body.servername });
     }
     return res.send({ status: r.status });
+});
+
+/** A co-teacher that already belongs to the session (same token) connects to the new host after a failover. */
+router.post('/rejoin', (req, res) => {
+    const session = config.examServerList[req.body?.servername];
+    const token = /^Bearer\s+(\S+)/i.exec(String(req.headers?.authorization || ''))?.[1];
+    const teacher = session?.coTeachers?.find((c) => c.token === token);
+    if (!teacher) return res.send({ status: 'error', code: 'NOT_AUTHORIZED' });
+    teacher.lastSeen = Date.now();
+    teacher.ip = String(req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+    return res.send({ status: 'success', epoch: session.serverinfo.epoch || 0 });
 });
 
 router.post('/rpc', async (req, res) => {

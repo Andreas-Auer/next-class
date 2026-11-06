@@ -20,7 +20,7 @@
         <button v-else class="btn btn-danger btn-sm me-3" data-e2e="session-end" @click="endSession">
             <img src="/src/assets/img/svg/stock_exit.svg" class="white me-1" width="16" height="16"> {{ $t('dashboard.end') }}
         </button>
-        <span style="font-size: 23px;">{{ remote ? $t('coteacher.title') : $t('general.teacher') }}</span>
+        <span style="font-size: 23px;" data-e2e="role">{{ remote ? $t('coteacher.title') : $t('general.teacher') }}</span>
     </div>
 
     <div class="d-flex flex-grow-1" style="min-height: 0;">
@@ -282,6 +282,22 @@ export default {
         const info = await this.api('getSessionInfo', this.servername)
         if (info?.status !== 'success') { this.$router.push('/'); return }
         this.applySessionInfo(info, true)
+        // failover: this co-teacher app now leads the session / the host moved / we were replaced as host
+        window.ipcRenderer.on('coteacher-became-host', () => {
+            this.remote = false
+            this.hostReachable = true
+            this.$swal.fire({ title: this.$t('coteacher.tookover'), text: this.$t('coteacher.tookovertext'), icon: 'info' })
+        })
+        window.ipcRenderer.on('coteacher-newhost', (_e, d) => {
+            this.hostReachable = true
+            this.$swal.fire({ title: this.$t('coteacher.newhost'), text: `${d?.name || ''} (${d?.host || ''})`, icon: 'info', timer: 6000 })
+        })
+        window.ipcRenderer.on('session-taken-over', async (_e, d) => {
+            if (d?.servername !== this.servername) return
+            clearInterval(this.pollTimer)
+            await this.$swal.fire({ title: this.$t('coteacher.takenover'), text: this.$t('coteacher.takenovertext', { by: d.by }), icon: 'info' })
+            this.$router.push('/')
+        })
         await this.loadAppLockData()
         this.clockTimer = setInterval(() => { this.now = Date.now() }, 1000)   // the idle counter ticks every second
         await this.fetchStudents()
@@ -290,6 +306,7 @@ export default {
     beforeUnmount() {
         clearInterval(this.pollTimer)
         clearInterval(this.clockTimer)
+        for (const ch of ['coteacher-became-host', 'coteacher-newhost', 'session-taken-over']) window.ipcRenderer.removeAllListeners(ch)
     },
     methods: {
         /** Seconds the screen has been unchanged, or null when below the threshold / unknown / off. */

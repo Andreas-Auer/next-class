@@ -103,8 +103,10 @@ class MulticastClient {
      */
     isNewExamInstance (obj) {
         for (let i = 0; i < this.examServerList.length; i++) {
-            if (this.examServerList[i].id === obj.id) {
-                this.examServerList[i].timestamp = obj.timestamp // existing server - update timestamp
+            const e = this.examServerList[i]
+            // one entry per teacher app: after a failover the same session id is announced by another app
+            if (e.id === obj.id && e.serverip === obj.serverip && (e.apiPort || 0) === (obj.apiPort || 0)) {
+                this.examServerList[i] = { ...e, ...obj }   // keep epoch etc. current
                 return false
             }
         }

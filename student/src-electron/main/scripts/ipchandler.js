@@ -48,12 +48,23 @@ class IpcHandler {
         return event.sender === this.WindowHandler.mainwindow?.webContents;
     }
 
+    /** Certificates are pinned per teacher app ("ip:port"): after a host failover another teacher app answers. */
+    certKey(serverip, port) {
+        return `${String(serverip).toLowerCase()}:${port || this.config.serverApiPort}`;
+    }
+
+    /** "10.0.0.5" or "10.0.0.5:22522" -> { serverip, port } */
+    splitAddress(address) {
+        const m = /^([^:]+)(?::(\d+))?$/.exec(String(address || '').trim());
+        return m ? { serverip: m[1], port: Number(m[2] || this.config.serverApiPort) } : { serverip: address, port: this.config.serverApiPort };
+    }
+
     /** Read the teacher leaf certificate fingerprint without sending API credentials. */
-    readTeacherCertificateFingerprint(serverip) {
+    readTeacherCertificateFingerprint(serverip, port = this.config.serverApiPort) {
         return new Promise((resolve) => {
             const socket = tls.connect({
                 host: serverip,
-                port: this.config.serverApiPort,
+                port,
                 rejectUnauthorized: false,
                 ...(net.isIP(serverip) ? {} : { servername: serverip }),
             }, () => {
@@ -61,7 +72,7 @@ class IpcHandler {
                 socket.end();
                 if (!raw) return resolve(null);
                 const pem = `-----BEGIN CERTIFICATE-----\n${raw.toString('base64').match(/.{1,64}/g).join('\n')}\n-----END CERTIFICATE-----\n`;
-                this.multicastClient.setTeacherCertificatePem(serverip, pem);
+                this.multicastClient.setTeacherCertificatePem(this.certKey(serverip, port), pem);
                 resolve(createHash('sha256').update(raw).digest('hex'));
             });
             socket.setTimeout(4000, () => { socket.destroy(); resolve(null); });
@@ -70,10 +81,11 @@ class IpcHandler {
     }
 
     /** Read the teacher certificate and apply trust-on-first-use pinning. */
-    async probeTeacherCertificate(serverip) {
-        const fingerprint = await this.readTeacherCertificateFingerprint(serverip);
+    async probeTeacherCertificate(serverip, port = this.config.serverApiPort) {
+        const fingerprint = await this.readTeacherCertificateFingerprint(serverip, port);
         if (!fingerprint) return { status: 'error', code: 'UNREACHABLE' };
-        return this.multicastClient.observeTeacherCertificate(serverip, fingerprint);
+        const result = this.multicastClient.observeTeacherCertificate(this.certKey(serverip, port), fingerprint);
+        return result.status === 'fingerprint-changed' ? { ...result, serverip, serverport: port } : result;
     }
 
     /** Pick the network interface used for discovery and as our own address. */
@@ -140,10 +152,11 @@ class IpcHandler {
 
         const clientname = normalizeStudentClientName(args.clientname);
         const { pin, serverip, servername } = args;
+        const port = Number(args.serverport) || this.config.serverApiPort;
         if (!clientname || !pin || !serverip || !servername) return { status: 'error', code: 'MISSING_INPUT' };
 
-        const certificate = await this.probeTeacherCertificate(serverip);
-        if (certificate.status !== 'trusted') return { ...certificate, serverip };
+        const certificate = await this.probeTeacherCertificate(serverip, port);
+        if (certificate.status !== 'trusted') return { ...certificate, serverip, serverport: port };
 
         const clientip = this.config.hostip || ip.address();
         const hostname = os.hostname();
@@ -155,16 +168,16 @@ class IpcHandler {
         try {
             const packet = await encryptSessionPayload(payload, pin);
             const response = await examApiFetch(
-                `https://${serverip}:${this.config.serverApiPort}/server/control/registerclient/${encodeURIComponent(servername)}`,
+                `https://${serverip}:${port}/server/control/registerclient/${encodeURIComponent(servername)}`,
                 { method: 'POST', signal: AbortSignal.timeout(8000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ packet }) }
             );
             const data = await response.json();
             if (data?.status !== 'success') return { status: 'error', message: data?.message, code: data?.code };
 
-            Object.assign(ci, { name: clientname, serverip, servername, ip: clientip, hostname, token: data.token, pin, reconnecting: false });
+            Object.assign(ci, { name: clientname, serverip, serverport: port, servername, ip: clientip, hostname, token: data.token, pin, reconnecting: false });
             this.multicastClient.reconnectToken = data.token;
             this.multicastClient.beaconsLost = 0;
-            this.CommHandler.rememberSession({ clientname, servername, serverip, pin });
+            this.CommHandler.rememberSession({ clientname, servername, serverip, serverport: port, pin });
             log.info(`ipchandler @ register: ${data.reconnected ? 'reconnected to' : 'joined'} "${servername}" @ ${serverip} as ${clientname}`);
             return data;
         } catch (error) {
@@ -211,12 +224,13 @@ class IpcHandler {
         });
 
         /** Is the teacher API reachable with a trusted certificate? */
-        ipcMain.handle('pingexamserver', async (event, { serverip } = {}) => {
+        ipcMain.handle('pingexamserver', async (event, { serverip, serverport } = {}) => {
             if (!this.fromMainWindow(event) || !serverip) return { ok: false };
+            const port = Number(serverport) || this.config.serverApiPort;
             try {
-                const certificate = await this.probeTeacherCertificate(serverip);
+                const certificate = await this.probeTeacherCertificate(serverip, port);
                 if (certificate.status !== 'trusted') return { ok: false, ...certificate };
-                const response = await examApiFetch(`https://${serverip}:${this.config.serverApiPort}/server/control/pong`,
+                const response = await examApiFetch(`https://${serverip}:${port}/server/control/pong`,
                     { method: 'GET', signal: AbortSignal.timeout(4000) });
                 return { ok: response.ok };
             } catch {
@@ -225,18 +239,18 @@ class IpcHandler {
         });
 
         /** Manual join by IP or host name (multicast blocked on the network). */
-        ipcMain.handle('fetch-exam-server-list', async (event, { serverip } = {}) => {
+        ipcMain.handle('fetch-exam-server-list', async (event, { serverip: address } = {}) => {
             if (!this.fromMainWindow(event)) return { status: 'error' };
+            const { serverip, port } = this.splitAddress(address);   // "ip" or "ip:port"
             if (!serverip || !(net.isIP(serverip) || /^[a-z0-9.-]+$/i.test(serverip))) return { status: 'error' };
             try {
-                const certificate = await this.probeTeacherCertificate(serverip);
+                const certificate = await this.probeTeacherCertificate(serverip, port);
                 if (certificate.status !== 'trusted') return certificate;
-                const response = await examApiFetch(`https://${serverip}:${this.config.serverApiPort}/server/control/serverlist`,
+                const response = await examApiFetch(`https://${serverip}:${port}/server/control/serverlist`,
                     { method: 'GET', signal: AbortSignal.timeout(4000) });
                 const data = await response.json();
-                for (const server of data?.serverlist || []) {
-                    this.multicastClient.allowTeacherCertificateHost(server.serverip || serverip, server.tlsFingerprint);
-                }
+                // the address the student typed is the one that works from here (the teacher may report another interface)
+                data.serverlist = (data?.serverlist || []).map((server) => ({ ...server, serverip, apiPort: port }));
                 return data;
             } catch (e) {
                 return { status: 'error', message: e.message };
@@ -244,10 +258,11 @@ class IpcHandler {
         });
 
         /** Student confirmed a changed teacher certificate (teacher app was restarted). */
-        ipcMain.handle('accept-teacher-certificate', async (event, { serverip } = {}) => {
+        ipcMain.handle('accept-teacher-certificate', async (event, { serverip, serverport } = {}) => {
             if (!this.fromMainWindow(event)) return { ok: false };
-            const fingerprint = await this.readTeacherCertificateFingerprint(serverip);
-            const ok = this.multicastClient.pinTeacherCertificate(serverip, fingerprint);
+            const port = Number(serverport) || this.config.serverApiPort;
+            const fingerprint = await this.readTeacherCertificateFingerprint(serverip, port);
+            const ok = this.multicastClient.pinTeacherCertificate(this.certKey(serverip, port), fingerprint);
             if (ok) await this.multicastClient.onTeacherCertificateAccepted?.();
             return { ok };
         });

@@ -287,6 +287,26 @@ class IpcHandler {
             ];
         });
 
+        // ---- failover ------------------------------------------------------------------
+        /** Everything a co-teacher needs to continue the session if this host fails (co-teachers only). */
+        this.op('replicaState', (_e, servername) => {
+            const session = this.session(servername);
+            if (!session) return null;
+            return {
+                servername,
+                id: session.serverinfo.id,
+                epoch: session.serverinfo.epoch || 0,
+                pin: session.serverinfo.pin,
+                teacherCode: session.teacherCode,
+                serverstatus: session.serverstatus,
+                studentList: session.studentList.map((st) => ({
+                    clientname: st.clientname, hostname: st.hostname, clientip: st.clientip, token: st.token, version: st.version, joinedAt: st.joinedAt,
+                })),
+                coTeachers: (session.coTeachers || []).map(({ name, ip, apiPort, token, joinedAt }) => ({ name, ip, apiPort, token, joinedAt })),
+                events: (session.events || []).slice(0, 100),
+            };
+        });
+
         /** Join requests waiting for the host's decision (host only, not callable by co-teachers). */
         ipcMain.handle('pendingTeacherJoins', (_e, servername) => {
             const session = this.session(servername);
@@ -302,7 +322,7 @@ class IpcHandler {
             if (approve) {
                 req.status = 'approved';
                 req.token = `teacher-${crypto.randomUUID()}`;
-                session.coTeachers.push({ name: req.name, ip: req.ip, token: req.token, joinedAt: Date.now(), lastSeen: Date.now() });
+                session.coTeachers.push({ name: req.name, ip: req.ip, apiPort: req.apiPort, token: req.token, joinedAt: Date.now(), lastSeen: Date.now() });
                 addEvent(session, req.name, 'teacher-joined');
             } else {
                 req.status = 'denied';
@@ -319,7 +339,42 @@ class IpcHandler {
         });
 
         ipcMain.handle('checkhostip', () => this.checkHostIp());
+        setInterval(() => this.checkSupersededSessions(), 5000);
         ipcMain.handle('setPreferredInterface', (_event, name) => { this.preferredInterface = name || null; });
+    }
+
+    /**
+     * Failover: continue a session from a co-teacher's replica on this teacher app.
+     * Same session id and PIN (students reconnect with their old tokens), epoch + 1.
+     */
+    importSession(replica, ownToken) {
+        if (!replica?.servername || this.session(replica.servername)) return false;
+        const session = new MulticastServer();
+        session.init(replica.servername, replica.pin, { id: replica.id, epoch: (replica.epoch || 0) + 1 });
+        session.teacherCode = replica.teacherCode;
+        session.serverstatus = replica.serverstatus || {};
+        session.studentList = (replica.studentList || []).map((st) => ({ ...st, timestamp: 0, imageurl: false, screenlock: false, status: {} }));
+        const now = Date.now();
+        session.coTeachers = (replica.coTeachers || []).filter((c) => c.token !== ownToken).map((c) => ({ ...c, lastSeen: now }));
+        session.pendingJoins = new Map();
+        session.events = replica.events || [];
+        this.config.examServerList[replica.servername] = session;
+        addEvent(session, t('coteacher.you'), 'host-failover');
+        log.warn(`ipchandler @ importSession: took over "${replica.servername}" (epoch ${session.serverinfo.epoch})`);
+        return true;
+    }
+
+    /** A session of this app is led by another teacher app with a higher epoch (we were offline): step down. */
+    checkSupersededSessions() {
+        for (const [servername, session] of Object.entries(this.config.examServerList)) {
+            const newer = this.multicastClient.examServerList.find((b) => b.id === session.serverinfo.id && (b.epoch || 0) > (session.serverinfo.epoch || 0));
+            if (!newer) continue;
+            log.warn(`ipchandler @ checkSupersededSessions: "${servername}" is now led by ${newer.serverip} - stepping down`);
+            session.broadcastInterval?.stop();
+            try { session.server?.close(); } catch { /* closed */ }
+            delete this.config.examServerList[servername];
+            this.WindowHandler?.mainwindow?.webContents.send('session-taken-over', { servername, by: newer.serverip });
+        }
     }
 
     /** Pick the classroom network interface (the one with the default gateway unless the teacher chose another). */

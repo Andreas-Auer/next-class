@@ -67,7 +67,7 @@ export class NetLock {
     }
 
     /**
-     * Called with every heartbeat. ctx: { hostip, teacherIp, servername }.
+     * Called with every heartbeat. ctx: { hostip, teacherIp, owner (session id) }.
      * Re-sends the lock each time (idempotent in the helper) so a restarted helper is locked again at once.
      */
     async sync(policy, ctx) {
@@ -75,7 +75,7 @@ export class NetLock {
         this.busy = true;
         try {
             const next = policy?.active ? policy : { active: false };
-            const owner = `${ctx.servername}@${ctx.teacherIp}`;
+            const owner = ctx.owner;
             const wasActive = this.policy.active;
             this.installed = isInstalled();
 

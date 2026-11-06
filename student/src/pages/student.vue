@@ -60,7 +60,7 @@
                         <img src="/img/svg/eye-fill.svg" width="16" height="16" class="me-1"> {{ $t('student.liveview') }}
                     </p>
                     <p v-else class="mb-1 text-secondary">{{ $t('student.liveviewoff') }}</p>
-                    <p v-if="clientinfo.screenPermission && clientinfo.screenPermission !== 'granted'" class="alert alert-warning mt-2 mb-1">
+                    <p v-if="(clientinfo.screenPermission && clientinfo.screenPermission !== 'granted') || clientinfo.screenCaptureError" class="alert alert-warning mt-2 mb-1" data-e2e="screen-permission-hint">
                         {{ $t('student.screenpermission') }}
                     </p>
                     <div v-if="clientinfo.applock?.state === 'grace'" class="alert alert-warning mt-2" data-e2e="applock-grace">
@@ -125,7 +125,7 @@
                                  :title="server.certChanged ? $t('student.certchanged') : $t('student.unreachable')">
                         </div>
                         <button class="btn btn-sm btn-outline-secondary w-100" :disabled="joining" :data-e2e="`join-${server.servername}`"
-                                @click="registerClient(server.serverip, server.servername)">
+                                @click="registerClient(server.serverip, server.servername, server.apiPort)">
                             {{ $t('student.joinonly') }}
                         </button>
                     </div>
@@ -267,7 +267,7 @@ export default {
 
             for (const server of this.serverlist) {
                 if (!server.serverip) continue
-                window.ipcRenderer.invoke('pingexamserver', { serverip: server.serverip }).then((result) => {
+                window.ipcRenderer.invoke('pingexamserver', { serverip: server.serverip, serverport: server.apiPort }).then((result) => {
                     server.reachable = !!result?.ok
                     server.certChanged = result?.status === 'fingerprint-changed'
                 }).catch(() => { server.reachable = false })
@@ -305,8 +305,8 @@ export default {
         },
 
         /** One register attempt incl. the "teacher app restarted" certificate question. */
-        async tryRegister(serverip, servername) {
-            const args = { clientname: this.username, servername, serverip, pin: String(this.pincode) }
+        async tryRegister(serverip, servername, serverport) {
+            const args = { clientname: this.username, servername, serverip, serverport, pin: String(this.pincode) }
             let response = await window.ipcRenderer.invoke('register', args)
             if (response?.status === 'fingerprint-changed') {
                 const confirm = await this.$swal.fire({
@@ -318,7 +318,7 @@ export default {
                     cancelButtonText: this.$t('general.cancel'),
                 })
                 if (!confirm.isConfirmed) return { status: 'cancelled' }
-                const accepted = await window.ipcRenderer.invoke('accept-teacher-certificate', { serverip })
+                const accepted = await window.ipcRenderer.invoke('accept-teacher-certificate', { serverip, serverport })
                 if (!accepted?.ok) return { status: 'error', code: 'CERT' }
                 response = await window.ipcRenderer.invoke('register', args)
             }
@@ -345,7 +345,7 @@ export default {
                 let last = { status: 'error', code: 'WRONG_PIN' }
                 for (const server of this.serverlist) {
                     if (!server.serverip) continue
-                    const response = await this.tryRegister(server.serverip, server.servername)
+                    const response = await this.tryRegister(server.serverip, server.servername, server.apiPort)
                     if (response?.status === 'success' || response?.status === 'cancelled') { last = response; break }
                     if (response?.code !== 'WRONG_PIN') last = response   // keep the most useful error
                 }
@@ -356,11 +356,11 @@ export default {
         },
 
         /** Join one specific session. */
-        async registerClient(serverip, servername) {
+        async registerClient(serverip, servername, serverport) {
             if (!this.validateInput()) return
             this.joining = true
             try {
-                this.showJoinResult(await this.tryRegister(serverip, servername))
+                this.showJoinResult(await this.tryRegister(serverip, servername, serverport))
             } finally {
                 this.joining = false
             }

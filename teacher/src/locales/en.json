@@ -142,7 +142,8 @@
       "program": "program lock",
       "firewall": "firewall changed",
       "netlock-problem": "internet lock not effective",
-      "teacher-joined": "joined as co-teacher"
+      "teacher-joined": "joined as co-teacher",
+      "host-failover": "took over the session (host failed)"
     }
   },
   "coteacher": {
@@ -171,6 +172,12 @@
       "NOT_FOUND": "Session not found.",
       "TOO_MANY": "Too many open requests – please try again later.",
       "MISSING_NAME": "Please enter your name."
-    }
+    },
+    "you": "this teacher app",
+    "tookover": "You are now leading the session",
+    "tookovertext": "The host's teacher app was no longer reachable. Your teacher app took over the session; student devices reconnect automatically.",
+    "takenover": "Session was taken over",
+    "takenovertext": "While your teacher app was unreachable, a co-teacher took over the session ({by}). You can join again as co-teacher.",
+    "newhost": "New host"
   }
 }

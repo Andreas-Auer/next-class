@@ -16,5 +16,5 @@ Jeder Schritt bekommt einen eigenen Branch (`step-N-…`) und eine Testanleitung
 | 10 | macOS (pf), danach Linux (nftables) | offen |
 | 11 | Ausnahmen für die Internetsperre (Lizenzserver, Netzlaufwerke: Name, IP oder Netz) | erledigt (`step-11-exceptions`) |
 | 12 | Co-Lehrkräfte: Beitritt mit Lehrer-Code + Bestätigung, gleichberechtigte Steuerung über den Host, Zustand synchron | erledigt (`step-12-coteachers`) |
-| 13 | Übergabe und Übernahme bei Host-Ausfall | offen |
+| 13 | Übernahme bei Host-Ausfall: erste Co-Lehrkraft übernimmt nach 20 s, Schüler verbinden sich automatisch neu, Sperren bleiben, alter Host gibt ab | erledigt (`step-13-failover`) |
 | 14 | CI (Tests + unsignierte Installer für Windows, macOS, Linux; Release bei Versions-Tag) und Kurzanleitung | erledigt (`step-14-ci`) |

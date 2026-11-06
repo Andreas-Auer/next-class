@@ -54,6 +54,15 @@ class CommHandler {
         this.idleForced = false;       // e2e only: fixed "unchanged since" value
     }
 
+    /**
+     * Who may lift a lock early: the session that set it. Identified by the session id, which stays the
+     * same when a co-teacher takes over after a host failure (the teacher's ip changes then).
+     */
+    lockOwner() {
+        const ci = this.multicastClient.clientinfo;
+        return ci.sessionId || ci.servername || null;
+    }
+
     /** Remember the joined session so a network dropout can be healed without the student doing anything. */
     rememberSession(session) {
         this.lastSession = session;
@@ -66,6 +75,25 @@ class CommHandler {
     }
 
     /** Try to join the last session again (same name + token -> the teacher keeps the student's tile). */
+    /**
+     * Teacher apps that may lead the session now, in this order: the address announced on the network
+     * (also after a host failover: same session, new teacher app), the last host, the co-teachers.
+     */
+    reconnectCandidates() {
+        const s = this.lastSession;
+        const list = [];
+        const add = (ip, port) => {
+            if (!ip) return;
+            const p = Number(port) || this.config.serverApiPort;
+            if (!list.some((c) => c.serverip === ip && c.serverport === p)) list.push({ serverip: ip, serverport: p });
+        };
+        for (const b of this.multicastClient.examServerList.filter((x) => x.servername === s.servername)) add(b.serverip, b.apiPort);
+        add(s.serverip, s.serverport);
+        for (const t of s.backups || []) add(t.ip, t.port);
+        return list;
+    }
+
+    /** Try to join the last session again (same name + token -> the teacher keeps the student's tile). */
     async tryReconnect() {
         const ci = this.multicastClient.clientinfo;
         if (ci.token || !this.lastSession || !this.registerFn) return;
@@ -73,15 +101,17 @@ class CommHandler {
         this.lastReconnectTry = Date.now();
         ci.reconnecting = this.lastSession.servername;
 
-        // the teacher may have a new ip (e.g. other WLAN access point) - prefer the address from its beacon
-        const beacon = this.multicastClient.examServerList.find((s) => s.servername === this.lastSession.servername);
-        const serverip = beacon?.serverip || this.lastSession.serverip;
-        const result = await this.registerFn({ ...this.lastSession, serverip });
+        const candidates = this.reconnectCandidates();
+        const target = candidates[(this.reconnectIndex = ((this.reconnectIndex || 0) + 1)) % candidates.length];
+        const result = await this.registerFn({ ...this.lastSession, ...target });
         if (result?.status === 'success') {
-            log.info('communicationhandler @ tryReconnect: connection restored');
-        } else if (['WRONG_PIN', 'NAME_TAKEN', 'RECONNECT_AUTH_FAILED', 'VERSION_MISMATCH'].includes(result?.code)
-            || result?.status === 'fingerprint-changed'                     // teacher app restarted -> old session is gone
-            || Date.now() - this.lastSession.lostAt > RECONNECT_GIVE_UP_MS) {
+            log.info(`communicationhandler @ tryReconnect: connection restored (${target.serverip}:${target.serverport})`);
+            return;
+        }
+        const definitive = ['WRONG_PIN', 'NAME_TAKEN', 'RECONNECT_AUTH_FAILED', 'VERSION_MISMATCH'].includes(result?.code)
+            // a restarted teacher app (new certificate) no longer has the session - unless another teacher app can take us
+            || (result?.status === 'fingerprint-changed' && candidates.length <= 1);
+        if (definitive || Date.now() - this.lastSession.lostAt > RECONNECT_GIVE_UP_MS) {
             log.warn(`communicationhandler @ tryReconnect: giving up (${result?.code || result?.status || 'timeout'})`);
             this.forgetSession();
         }
@@ -137,7 +167,8 @@ class CommHandler {
     }
 
     teacherUrl(route) {
-        return `https://${this.multicastClient.clientinfo.serverip}:${this.config.serverApiPort}/server/control/${route}`;
+        const ci = this.multicastClient.clientinfo;
+        return `https://${ci.serverip}:${ci.serverport || this.config.serverApiPort}/server/control/${route}`;
     }
 
     authHeaders() {
@@ -182,16 +213,16 @@ class CommHandler {
             }
             if (data.message === 'removed') {   // teacher removed us (kick) or restarted the session
                 log.warn('communicationhandler @ requestUpdate: registration no longer known by the teacher');
-                NetLock.lift('removed', `${ci.servername}@${ci.serverip}`);
-                AppLock.lift('removed', `${ci.servername}@${ci.serverip}`);
+                NetLock.lift('removed', this.lockOwner());
+                AppLock.lift('removed', this.lockOwner());
                 this.forgetSession();
                 this.resetConnection();
                 return;
             }
             if (data.message === 'notavailable') {   // session ended, teacher app still running
                 log.warn('communicationhandler @ requestUpdate: session not available anymore');
-                NetLock.lift('session-ended', `${ci.servername}@${ci.serverip}`);
-                AppLock.lift('session-ended', `${ci.servername}@${ci.serverip}`);
+                NetLock.lift('session-ended', this.lockOwner());
+                AppLock.lift('session-ended', this.lockOwner());
                 this.forgetSession();
                 this.multicastClient.beaconsLost = MAX_LOST_HEARTBEATS;
                 return;
@@ -215,15 +246,18 @@ class CommHandler {
 
         if (studentstatus.kicked) {
             log.warn('communicationhandler @ processUpdate: removed from the session by the teacher');
-            NetLock.lift('removed', `${ci.servername}@${ci.serverip}`);
-            AppLock.lift('removed', `${ci.servername}@${ci.serverip}`);
+            NetLock.lift('removed', this.lockOwner());
+            AppLock.lift('removed', this.lockOwner());
             this.forgetSession();
             this.resetConnection();
             return;
         }
 
-        AppLock.setPolicy(serverstatus.applock, `${ci.servername}@${ci.serverip}`);
-        NetLock.sync(serverstatus.netlock, { hostip: this.config.hostip, teacherIp: ci.serverip, servername: ci.servername });   // async, guarded
+        // the other teacher apps of this session (reconnect targets if the host fails)
+        if (this.lastSession && Array.isArray(serverstatus.teachers)) this.lastSession.backups = serverstatus.teachers;
+        if (serverstatus.sessionId) ci.sessionId = serverstatus.sessionId;
+        AppLock.setPolicy(serverstatus.applock, this.lockOwner());
+        NetLock.sync(serverstatus.netlock, { hostip: this.config.hostip, teacherIp: ci.serverip, owner: this.lockOwner() });   // async, guarded
 
         if (serverstatus.screenslocked && !ci.screenlock) this.activateScreenlock();
         else if (!serverstatus.screenslocked && ci.screenlock) this.killScreenlock();
@@ -263,6 +297,7 @@ class CommHandler {
         if (ci.token) this.multicastClient.reconnectToken = ci.token;
         ci.token = false;
         ci.serverip = false;
+        ci.serverport = false;
         ci.servername = false;
         ci.pin = false;
         ci.screenUnchangedSeconds = null;
@@ -307,6 +342,8 @@ class CommHandler {
             let screenshot = null;
             try {
                 screenshot = await this.captureScreen();
+                // macOS without "Screen Recording" permission may also deliver an empty image instead of an error
+                if (!screenshot) throw new Error('empty capture');
                 ci.screenCaptureError = false;
             } catch (error) {
                 // typically macOS without "Screen Recording" permission; the teacher sees a badge instead of an image
@@ -321,7 +358,8 @@ class CommHandler {
                 signal: AbortSignal.timeout(8000),
             });
         } catch (error) {
-            log.warn(`communicationhandler @ sendScreenshot: ${error?.message || error}`);
+            const cause = error?.cause ? ` (${error.cause.code || ''} ${error.cause.message || ''})` : '';
+            log.warn(`communicationhandler @ sendScreenshot: ${error?.message || error}${cause}`);
         } finally {
             this.screenshotBusy = false;
         }

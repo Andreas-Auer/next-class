@@ -62,7 +62,9 @@ export async function examApiFetch(input, init = {}) {
     const auth = await buildAppSecretHeaders()
     for (const [key, value] of Object.entries(auth)) headers.set(key, value)
 
-    const hostname = new URL(typeof input === 'string' ? input : input.url).hostname.toLowerCase()
+    // pinned per teacher app: "ip:port" (see ipchandler.certKey)
+    const url = new URL(typeof input === 'string' ? input : input.url)
+    const hostname = `${url.hostname.toLowerCase()}:${url.port || 443}`
     const pinned = multicastClient.getPinnedTeacherCertificate(hostname)
     if (!pinned) throw new Error(`net::ERR_CERT_AUTHORITY_INVALID (no pinned certificate for ${hostname})`)
 

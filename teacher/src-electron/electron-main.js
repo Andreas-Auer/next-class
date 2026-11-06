@@ -114,7 +114,10 @@ app.commandLine.appendSwitch('lang', 'de');
 
 WindowHandler.init(multicastClient, config)  // mainwindow, examwindow
 IpcHandler.init(multicastClient, config, WindowHandler)
-CoTeacherClient.init(config)   // joining another teacher's session as co-teacher
+CoTeacherClient.init(config, {   // joining another teacher's session as co-teacher (incl. failover)
+    importSession: (replica, token) => IpcHandler.importSession(replica, token),
+    notify: (channel, data) => WindowHandler.mainwindow?.webContents.send(channel, data),
+})
 
 
 /**

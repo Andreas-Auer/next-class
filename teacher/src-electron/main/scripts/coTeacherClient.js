@@ -24,11 +24,76 @@ import { ipcMain } from 'electron';
 import log from 'electron-log';
 import { buildAppSecretHeaders, encryptSessionPayload } from '../../../../shared/apiSecret.js';
 
+const REPLICA_REFRESH_MS = 5000;     // copy of the session state kept by every co-teacher
+const FAILOVER_AFTER_MS = 20000;     // host unreachable this long -> the first co-teacher takes over
+const FAILOVER_STAGGER_MS = 15000;   // each further co-teacher waits longer (only one takes over)
+
 class CoTeacherClient {
     constructor() {
         this.pins = new Map();   // "ip:port" -> sha256 fingerprint (hex, lower case)
         this.remote = null;      // { host, port, servername, token, name }
         this.config = null;
+        this.replica = null;     // last copy of the host's session state
+        this.lastOk = 0;         // last successful contact with the host
+        this.hooks = {};         // { importSession(replica, token), notify(channel, data) }
+        this.failoverBusy = false;
+    }
+
+    /** Remember a successful contact with the host. */
+    ok(data) {
+        if (data && data.status !== 'error') this.lastOk = Date.now();
+        return data;
+    }
+
+    async refreshReplica() {
+        if (!this.remote) return;
+        try {
+            const r = this.ok(await this.request(this.remote, '/server/teacher/rpc', {
+                token: this.remote.token, body: { servername: this.remote.servername, method: 'replicaState' },
+            }));
+            if (r?.status === 'success' && r.result) this.replica = r.result;
+        } catch { /* host unreachable - handled by the failover check */ }
+    }
+
+    /**
+     * Host unreachable: co-teachers are ranked by join time. Each first looks whether a co-teacher
+     * ranked before it already leads the session (rejoin with the same token); the first one takes over.
+     */
+    async checkFailover() {
+        if (!this.remote || !this.replica || this.failoverBusy) return;
+        const down = Date.now() - this.lastOk;
+        if (down < FAILOVER_AFTER_MS) return;
+        this.failoverBusy = true;
+        try {
+            const ranked = [...(this.replica.coTeachers || [])].sort((a, b) => a.joinedAt - b.joinedAt);
+            const myIndex = ranked.findIndex((c) => c.token === this.remote.token);
+            for (const candidate of ranked.slice(0, Math.max(0, myIndex))) {
+                if (!candidate.ip) continue;
+                const target = { host: candidate.ip, port: candidate.apiPort || this.config.serverApiPort };
+                try {
+                    const r = await this.request(target, '/server/teacher/rejoin', { token: this.remote.token, body: { servername: this.remote.servername } });
+                    if (r?.status === 'success') {
+                        this.remote = { ...this.remote, ...target };
+                        this.lastOk = Date.now();
+                        log.warn(`coTeacher: host failed, now connected to the new host ${target.host}:${target.port}`);
+                        this.hooks.notify?.('coteacher-newhost', { host: target.host, name: candidate.name });
+                        return;
+                    }
+                } catch { /* candidate not reachable or not leading */ }
+            }
+            if (myIndex >= 0 && down >= FAILOVER_AFTER_MS + myIndex * FAILOVER_STAGGER_MS) {
+                const replica = this.replica;
+                const token = this.remote.token;
+                if (this.hooks.importSession?.(replica, token)) {
+                    log.warn(`coTeacher: host unreachable for ${Math.round(down / 1000)} s - taking over "${replica.servername}"`);
+                    this.remote = null;
+                    this.replica = null;
+                    this.hooks.notify?.('coteacher-became-host', { servername: replica.servername });
+                }
+            }
+        } finally {
+            this.failoverBusy = false;
+        }
     }
 
     /** Parse "10.0.0.5" or "10.0.0.5:22522". */
@@ -67,8 +132,11 @@ class CoTeacherClient {
         });
     }
 
-    init(config) {
+    init(config, hooks = {}) {
         this.config = config;
+        this.hooks = hooks;
+        setInterval(() => this.refreshReplica(), REPLICA_REFRESH_MS);
+        setInterval(() => this.checkFailover(), 3000);
 
         /** Sessions running on a teacher app given by address (manual join, multicast blocked). */
         ipcMain.handle('cojoin-list', async (_e, address) => {
@@ -85,7 +153,8 @@ class CoTeacherClient {
         ipcMain.handle('cojoin-request', async (_e, { address, servername, code, name } = {}) => {
             try {
                 const t = this.target(address);
-                const packet = await encryptSessionPayload({ code: String(code || '').trim(), name }, String(code || '').trim());
+                // apiPort: where this app can be reached if it has to take over the session
+                const packet = await encryptSessionPayload({ code: String(code || '').trim(), name, apiPort: this.config.serverApiPort }, String(code || '').trim());
                 const data = await this.request(t, `/server/teacher/join/${encodeURIComponent(servername)}`, { body: { packet } });
                 return data;
             } catch (e) {
@@ -100,6 +169,8 @@ class CoTeacherClient {
                 const data = await this.request(t, '/server/teacher/joinstatus', { body: { servername, requestId } });
                 if (data.status === 'approved') {
                     this.remote = { ...t, servername, token: data.token, name };
+                    this.lastOk = Date.now();
+                    this.refreshReplica();
                     log.info(`coTeacher: joined "${servername}" on ${t.host}:${t.port} as co-teacher`);
                 }
                 return data;
@@ -112,10 +183,10 @@ class CoTeacherClient {
         ipcMain.handle('remote-rpc', async (_e, { method, args } = {}) => {
             if (!this.remote) return { status: 'error', code: 'NOT_JOINED' };
             try {
-                const data = await this.request(this.remote, '/server/teacher/rpc', {
+                const data = this.ok(await this.request(this.remote, '/server/teacher/rpc', {
                     token: this.remote.token,
                     body: { servername: this.remote.servername, method, args },
-                });
+                }));
                 return data;
             } catch (e) {
                 return { status: 'error', code: 'UNREACHABLE', message: e.message };
@@ -123,7 +194,7 @@ class CoTeacherClient {
         });
 
         ipcMain.handle('remote-info', () => (this.remote ? { servername: this.remote.servername, host: this.remote.host, port: this.remote.port, name: this.remote.name } : null));
-        ipcMain.handle('remote-leave', () => { this.remote = null; return { status: 'success' }; });
+        ipcMain.handle('remote-leave', () => { this.remote = null; this.replica = null; return { status: 'success' }; });
     }
 }
 
