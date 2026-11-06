@@ -72,6 +72,17 @@
                         <strong>{{ $t('student.applockactive') }}</strong><br>
                         <span class="small">{{ $t('student.applockallowed') }} {{ allowedList }}</span>
                     </div>
+                    <div v-if="clientinfo.netlock?.state === 'active'" class="alert alert-dark mt-2" data-e2e="netlock-active">
+                        <strong>{{ $t('student.netlockactive', { time: formatTime(clientinfo.netlock.until) }) }}</strong><br>
+                        <span class="small">{{ $t('student.netlockinfo') }}</span>
+                    </div>
+                    <div v-if="!clientinfo.netlock?.installed" class="alert alert-info mt-2" data-e2e="netlock-setup">
+                        {{ $t('student.netlocksetupinfo') }}<br>
+                        <button class="btn btn-sm btn-primary mt-2" :disabled="clientinfo.netlock?.state === 'installing'" data-e2e="netlock-install" @click="installHelper">
+                            {{ clientinfo.netlock?.state === 'installing' ? $t('student.netlockinstalling') : $t('student.netlocksetup') }}
+                        </button>
+                    </div>
+                    <p v-if="clientinfo.netlock?.state === 'error' && clientinfo.netlock?.error" class="small text-danger">{{ clientinfo.netlock.error }}</p>
                     <p class="text-secondary small mt-3 mb-3">{{ $t('student.hidehint') }}</p>
                     <button class="btn btn-danger btn-sm" data-e2e="leave" @click="leaveSession">{{ $t('student.leave') }}</button>
                 </div>
@@ -366,6 +377,17 @@ export default {
             if (!result.isConfirmed) return
             await window.ipcRenderer.invoke('disconnect')
             this.token = false
+            this.fetchInfo()
+        },
+
+        formatTime(ts) {
+            return ts ? new Date(ts).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) : ''
+        },
+
+        async installHelper() {
+            const result = await window.ipcRenderer.invoke('netlock-install')
+            if (result?.status === 'success') this.$swal.fire({ title: 'OK', text: this.$t('student.netlockinstalled'), icon: 'success', timer: 4000 })
+            else this.$swal.fire({ title: this.$t('general.error'), text: this.$t('student.netlockinstallfailed') + (result?.message ? ` (${result.message})` : ''), icon: 'error' })
             this.fetchInfo()
         },
 

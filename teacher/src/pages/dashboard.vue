@@ -62,8 +62,25 @@
                 <label for="sortidle" class="form-check-label">{{ $t('dashboard.sortidle') }}</label>
             </div>
 
+            <!-- internet lock -->
+            <div class="lockbox mt-3 p-2" :class="{ active: netlock.active }">
+                <div class="small fw-bold mb-1">{{ $t('netlock.title') }}</div>
+                <template v-if="!netlock.active">
+                    <select class="form-select form-select-sm mb-1" v-model="netEndMode" data-e2e="netlock-end">
+                        <option value="50">{{ $t('netlock.plusminutes', { m: 50 }) }}</option>
+                        <option value="100">{{ $t('netlock.plusminutes', { m: 100 }) }}</option>
+                        <option value="time">{{ $t('netlock.attime') }}</option>
+                    </select>
+                    <input v-if="netEndMode === 'time'" type="time" class="form-control form-control-sm mb-1" v-model="netEndTime" data-e2e="netlock-time">
+                </template>
+                <button class="btn btn-sm w-100" :class="netlock.active ? 'btn-warning' : 'btn-outline-warning'" data-e2e="netlock-toggle" @click="toggleNetLock">
+                    {{ netlock.active ? $t('netlock.lift') : $t('netlock.activate') }}
+                </button>
+                <div v-if="netlock.active" class="small mt-1 text-warning" data-e2e="netlock-until">{{ $t('netlock.until', { time: formatTime(netlock.until) }) }}</div>
+            </div>
+
             <!-- program lock -->
-            <div class="applockbox mt-3 p-2" :class="{ active: applock.active }">
+            <div class="lockbox mt-3 p-2" :class="{ active: applock.active }">
                 <div class="small fw-bold mb-1">{{ $t('applock.title') }}</div>
                 <select class="form-select form-select-sm mb-1" v-model="selectedTemplateId" data-e2e="applock-template" @change="applyTemplate">
                     <option value="">{{ $t('applock.notemplate') }}</option>
@@ -114,6 +131,11 @@
                             <span v-if="idleSeconds(student) !== null" class="badge idlebadge" data-e2e="badge-idle"
                                   :title="$t('dashboard.idlehint')">⏸ {{ formatDuration(idleSeconds(student)) }}</span>
                             <span v-if="student.online && student.screenlock" class="badge bg-warning text-dark" data-e2e="badge-locked">{{ $t('dashboard.locked') }}</span>
+                            <span v-if="student.netlock?.state === 'active'" class="badge bg-dark" data-e2e="badge-netlock">{{ $t('netlock.badgeactive') }}</span>
+                            <span v-if="netlock.active && ['notinstalled', 'unreachable', 'error'].includes(student.netlock?.state)" class="badge bg-danger"
+                                  data-e2e="badge-netlock-problem" :title="student.netlock?.error || ''">{{ $t(`netlock.problem.${student.netlock.state}`) }}</span>
+                            <span v-if="student.online && recentTamper(student)" class="badge bg-danger text-wrap text-start" data-e2e="badge-tamper"
+                                  :title="$t('netlock.tamperhint')">⚠ {{ $t(`netlock.event.${recentTamper(student).detail || 'rules-missing'}`) }}</span>
                             <span v-if="student.online && student.applock?.state === 'grace'" class="badge bg-warning text-dark" data-e2e="badge-applock-grace">
                                 {{ $t('applock.badgegrace', { s: student.applock.graceRemaining }) }}</span>
                             <span v-if="student.online && student.applock?.state === 'active'" class="badge bg-dark" data-e2e="badge-applock">{{ $t('applock.badgeactive') }}</span>
@@ -173,6 +195,9 @@ export default {
             now: Date.now(),
             students: [],
             applock: { active: false },
+            netlock: { active: false },
+            netEndMode: '50',
+            netEndTime: '',
             applockData: { catalog: [], customEntries: [], templates: [] },
             selectedTemplateId: '',
             allowedIds: [],
@@ -200,6 +225,7 @@ export default {
         this.screenshotinterval = info.serverstatus?.screenshotinterval ?? 4
         this.idlethreshold = info.serverstatus?.idlethreshold ?? 120
         this.applock = info.serverstatus?.applock || { active: false }
+        this.netlock = info.serverstatus?.netlock || { active: false }
         if (this.applock.active) { this.allowedIds = [...(this.applock.allowedIds || [])]; this.applockMode = this.applock.mode }
         await this.loadAppLockData()
         this.clockTimer = setInterval(() => { this.now = Date.now() }, 1000)   // the idle counter ticks every second
@@ -222,6 +248,47 @@ export default {
             const s = String(seconds % 60).padStart(2, '0')
             return m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}:${s}` : `${m}:${s}`
         },
+        // ---- internet lock ----------------------------------------------------
+        netLockUntil() {
+            if (this.netEndMode !== 'time') return Date.now() + Number(this.netEndMode) * 60_000
+            const [h, m] = String(this.netEndTime || '').split(':').map(Number)
+            if (!Number.isFinite(h) || !Number.isFinite(m)) return 0
+            const d = new Date()
+            d.setHours(h, m, 0, 0)
+            return d.getTime()
+        },
+        async toggleNetLock() {
+            if (this.netlock.active) {
+                const r = await window.ipcRenderer.invoke('setNetLock', { servername: this.servername, active: false })
+                if (r.status === 'success') this.netlock = r.netlock
+                return
+            }
+            const until = this.netLockUntil()
+            const maxUntil = Date.now() + 4 * 60 * 60_000
+            if (!until || until <= Date.now() + 60_000) {
+                this.$swal.fire({ title: this.$t('general.error'), text: this.$t('netlock.endinpast'), icon: 'error' })
+                return
+            }
+            const capped = Math.min(until, maxUntil)
+            const confirm = await this.$swal.fire({
+                title: this.$t('netlock.activate'),
+                html: this.$t('netlock.confirm', { time: this.formatTime(capped) }) + (until > maxUntil ? `<br><br>${this.$t('netlock.capped')}` : ''),
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: this.$t('netlock.activate'),
+                cancelButtonText: this.$t('general.cancel'),
+            })
+            if (!confirm.isConfirmed) return
+            const r = await window.ipcRenderer.invoke('setNetLock', { servername: this.servername, active: true, until: capped })
+            if (r.status === 'success') this.netlock = r.netlock
+            else this.$swal.fire({ title: this.$t('general.error'), text: r.message, icon: 'error' })
+        },
+        /** Last "rules restored" event of the helper within the violation window. */
+        recentTamper(student) {
+            const ev = (student.netlock?.events || []).find((e) => e.kind === 'restored' || e.kind === 'restore-failed')
+            return ev && this.now - ev.at < VIOLATION_SHOW_MS ? ev : null
+        },
+
         // ---- program lock -----------------------------------------------------
         async loadAppLockData() {
             this.applockData = await window.ipcRenderer.invoke('applock-overview')
@@ -357,8 +424,8 @@ export default {
 .studentwidget { width: 260px; }
 .studentwidget.offline { opacity: 0.6; }
 .studentwidget.idle { outline: 3px solid #fd7e14; }
-.applockbox { border: 1px solid #495057; border-radius: 4px; }
-.applockbox.active { border-color: #ffc107; }
+.lockbox { border: 1px solid #495057; border-radius: 4px; }
+.lockbox.active { border-color: #ffc107; }
 .nc-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 1050; display: flex; align-items: center; justify-content: center; }
 .idlebadge { background-color: #fd7e14; color: #fff; font-variant-numeric: tabular-nums; }
 .thumb { height: 150px; background: #e9ecef; cursor: zoom-in; border-top-left-radius: 4px; border-top-right-radius: 4px; overflow: hidden; }

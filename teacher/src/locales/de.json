@@ -96,5 +96,28 @@
     },
     "confirmkill": "Alle nicht erlaubten Programme werden nach 30 Sekunden Vorwarnung geschlossen. Erlaubt: {n} Programme.",
     "confirmreport": "Nicht erlaubte Programme werden nach 30 Sekunden nur gemeldet, aber nicht geschlossen. Erlaubt: {n} Programme."
+  },
+  "netlock": {
+    "title": "Internetsperre",
+    "plusminutes": "bis in {m} Minuten",
+    "attime": "bis Uhrzeit …",
+    "activate": "Internet sperren",
+    "lift": "Internet freigeben",
+    "until": "gesperrt bis {time}",
+    "endinpast": "Die Endzeit muss mindestens eine Minute in der Zukunft liegen.",
+    "confirm": "Auf allen Schülergeräten wird das Internet bis <b>{time}</b> gesperrt. Das Schulnetz bleibt erreichbar. Die Sperre endet auch ohne Verbindung zur Lehrer-App spätestens um diese Uhrzeit (+5 min).",
+    "capped": "Hinweis: Eine Sperre dauert höchstens 4 Stunden.",
+    "badgeactive": "Internet gesperrt",
+    "problem": {
+      "notinstalled": "Internetsperre nicht eingerichtet",
+      "unreachable": "Hilfsdienst nicht erreichbar",
+      "error": "Internetsperre: Fehler"
+    },
+    "tamperhint": "Auf dem Gerät wurde die Firewall verändert; Next-Class hat die Sperre automatisch wiederhergestellt.",
+    "event": {
+      "rules-missing": "Firewall-Regel entfernt – wiederhergestellt",
+      "firewall-disabled": "Firewall ausgeschaltet – wiederhergestellt",
+      "check-failed": "Firewall-Prüfung fehlgeschlagen"
+    }
   }
 }

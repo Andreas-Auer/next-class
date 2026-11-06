@@ -48,3 +48,6 @@ student/scripts/apple/wifi-helper
 
 test-results
 /.claude/worktrees/
+
+# Go helper build output
+helper/dist/

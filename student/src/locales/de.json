@@ -60,7 +60,14 @@
     "applocksave": "Bitte jetzt speichern und alle Programme schließen, die nicht erlaubt sind – sie werden sonst automatisch beendet.",
     "applockactive": "Programmsperre aktiv",
     "applockallowed": "Erlaubt:",
-    "applocknone": "nur Systemprogramme"
+    "applocknone": "nur Systemprogramme",
+    "netlockactive": "Internet gesperrt bis {time}",
+    "netlockinfo": "Das Schulnetz (Lehrer-App, Netzlaufwerke) bleibt erreichbar. Lokal gespeicherte Dateien und OneDrive-Ordner funktionieren weiter; OneDrive synchronisiert danach automatisch.",
+    "netlocksetupinfo": "Für die Internetsperre im Unterricht muss Next-Class einmalig einen kleinen Hilfsdienst einrichten. Dafür fragt der Computer einmal nach dem Administrator-Passwort.",
+    "netlocksetup": "Internetsperre einrichten",
+    "netlockinstalling": "Wird eingerichtet …",
+    "netlockinstalled": "Die Internetsperre ist eingerichtet.",
+    "netlockinstallfailed": "Die Einrichtung hat nicht geklappt."
   },
   "general": {
     "ok": "OK",

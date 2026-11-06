@@ -30,7 +30,8 @@ import { resolveEntries, entryFromRunningApp } from '../../../../shared/appCatal
 const { t } = i18n.global;
 const SESSION_NAME_PATTERN = /^[a-z0-9äöüß][a-z0-9äöüß _.-]{0,39}$/;
 const DEFAULT_SCREENSHOT_INTERVAL_S = 4;
-const DEFAULT_IDLE_THRESHOLD_S = 120;   // show the "screen unchanged" counter after 2 minutes
+const DEFAULT_IDLE_THRESHOLD_S = 120;
+const MAX_LOCK_MS = 4 * 60 * 60 * 1000;   // a lock never lasts longer than 4 hours (decision 2026-11-06)   // show the "screen unchanged" counter after 2 minutes
 
 /** IPC between the teacher renderer and the main process (session lifecycle, student list, commands). */
 class IpcHandler {
@@ -69,6 +70,7 @@ class IpcHandler {
             screenCaptureFailed: !!student.screenCaptureFailed,
             platform: student.platform || null,
             applock: student.applock || null,
+            netlock: student.netlock || null,
             unchangedSince: student.unchangedSince ?? null,
         };
     }
@@ -206,6 +208,33 @@ class IpcHandler {
             };
             log.info(`ipchandler @ setAppLock: ${payload.servername} -> ${session.serverstatus.applock.mode}, ${allowedIds.length} programs allowed`);
             return { status: 'success', applock: session.serverstatus.applock };
+        });
+
+        // ---- internet lock ---------------------------------------------------------
+        /**
+         * { servername, active, until (unix ms) }. The student devices keep the lock until "until"
+         * even without contact to this app; ending the session or removing a student lifts it earlier.
+         */
+        ipcMain.handle('setNetLock', (_e, payload = {}) => {
+            const session = this.session(payload.servername);
+            if (!session) return { status: 'error', message: t('control.notfound') };
+            if (!payload.active) {
+                session.serverstatus.netlock = { active: false };
+                log.info(`ipchandler @ setNetLock: ${payload.servername} -> lifted`);
+                return { status: 'success', netlock: session.serverstatus.netlock };
+            }
+            const now = Date.now();
+            const until = Math.min(Number(payload.until) || 0, now + MAX_LOCK_MS);
+            if (until <= now + 60_000) return { status: 'error', message: t('netlock.endinpast') };
+            session.serverstatus.netlock = {
+                active: true,
+                policyId: crypto.randomUUID(),
+                until,
+                startedAt: now,
+                extraAllow: Array.isArray(payload.extraAllow) ? payload.extraAllow.slice(0, 50) : [],
+            };
+            log.info(`ipchandler @ setNetLock: ${payload.servername} -> until ${new Date(until).toLocaleTimeString()}`);
+            return { status: 'success', netlock: session.serverstatus.netlock };
         });
 
         ipcMain.handle('checkhostip', () => this.checkHostIp());

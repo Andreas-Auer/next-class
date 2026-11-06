@@ -96,5 +96,28 @@
     },
     "confirmkill": "All programs not allowed will be closed after a 30 second warning. Allowed: {n} programs.",
     "confirmreport": "Programs not allowed will only be reported after 30 seconds, not closed. Allowed: {n} programs."
+  },
+  "netlock": {
+    "title": "Internet lock",
+    "plusminutes": "for {m} minutes",
+    "attime": "until time …",
+    "activate": "Block internet",
+    "lift": "Release internet",
+    "until": "blocked until {time}",
+    "endinpast": "The end time must be at least one minute in the future.",
+    "confirm": "The internet is blocked on all student devices until <b>{time}</b>. The school network stays reachable. The lock ends at this time (+5 min) at the latest, even without a connection to the teacher app.",
+    "capped": "Note: a lock lasts 4 hours at most.",
+    "badgeactive": "Internet blocked",
+    "problem": {
+      "notinstalled": "Internet lock not set up",
+      "unreachable": "Helper not reachable",
+      "error": "Internet lock: error"
+    },
+    "tamperhint": "The firewall was changed on this device; Next-Class restored the lock automatically.",
+    "event": {
+      "rules-missing": "Firewall rule removed – restored",
+      "firewall-disabled": "Firewall switched off – restored",
+      "check-failed": "Firewall check failed"
+    }
   }
 }

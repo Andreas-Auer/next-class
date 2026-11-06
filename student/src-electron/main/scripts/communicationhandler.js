@@ -23,6 +23,7 @@ import { syncClientDisplayInfo } from './displayInfo.js';
 import { examApiFetch, isCertificateError } from './examApiFetch.js';
 import { ScreenActivityTracker, SAMPLE_WIDTH, SAMPLE_HEIGHT, bgraToGray } from './screenActivity.js';
 import AppLock from './applock/appLock.js';
+import NetLock from './netlock/netLock.js';
 
 const UPDATE_INTERVAL_MS = 5000;     // heartbeat to the teacher
 const MAX_LOST_HEARTBEATS = 5;       // ~25 s without contact -> registration is dropped locally
@@ -151,6 +152,7 @@ class CommHandler {
         if (ci.token) ci.screenUnchangedSeconds = this.activity.unchangedSeconds();   // fresh value with every heartbeat
         AppLock.connected = !!ci.token;
         ci.applock = AppLock.status();
+        ci.netlock = NetLock.status();
 
         if (this.multicastClient.beaconsLost >= MAX_LOST_HEARTBEATS) {
             this.dropRegistration();
@@ -180,12 +182,14 @@ class CommHandler {
             }
             if (data.message === 'removed') {   // teacher removed us (kick) or restarted the session
                 log.warn('communicationhandler @ requestUpdate: registration no longer known by the teacher');
+                NetLock.lift('removed', `${ci.servername}@${ci.serverip}`);
                 this.forgetSession();
                 this.resetConnection();
                 return;
             }
             if (data.message === 'notavailable') {   // session ended, teacher app still running
                 log.warn('communicationhandler @ requestUpdate: session not available anymore');
+                NetLock.lift('session-ended', `${ci.servername}@${ci.serverip}`);
                 this.forgetSession();
                 this.multicastClient.beaconsLost = MAX_LOST_HEARTBEATS;
                 return;
@@ -209,12 +213,14 @@ class CommHandler {
 
         if (studentstatus.kicked) {
             log.warn('communicationhandler @ processUpdate: removed from the session by the teacher');
+            NetLock.lift('removed', `${ci.servername}@${ci.serverip}`);
             this.forgetSession();
             this.resetConnection();
             return;
         }
 
         AppLock.setPolicy(serverstatus.applock);
+        NetLock.sync(serverstatus.netlock, { hostip: this.config.hostip, teacherIp: ci.serverip, servername: ci.servername });   // async, guarded
 
         if (serverstatus.screenslocked && !ci.screenlock) this.activateScreenlock();
         else if (!serverstatus.screenslocked && ci.screenlock) this.killScreenlock();

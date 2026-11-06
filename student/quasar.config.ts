@@ -32,6 +32,12 @@ const winEbTarget = process.env.NXE_EB_WIN_TARGET === 'both'
     : [{ target: 'portable', arch: ['x64'] as const }];
 const macEbArch = process.env.NXE_EB_MAC_ARCH === 'arm64' ? (['arm64'] as const) : (['x64'] as const);
 
+// privileged helper for the internet lock (Go, built by `npm run build:helper` into helper/dist/<goos>-<goarch>)
+const helperTarget = process.platform === 'win32' ? 'windows-amd64'
+  : process.platform === 'darwin' ? `darwin-${process.env.NXE_EB_MAC_ARCH === 'arm64' ? 'arm64' : 'amd64'}`
+    : 'linux-amd64';
+const helperResources = [{ from: path.resolve(__dirname, '..', 'helper', 'dist', helperTarget), to: 'helper' }];
+
 // renderer-only deps are bundled by Vite; keep their raw node_modules copies out of the asar
 const rendererOnlyAsarExcludes = [
   '!node_modules/@popperjs/core/**',
@@ -113,6 +119,7 @@ export default defineConfig((ctx: any) => ({
       publish: null,
       asar: { smartUnpack: true },
       asarUnpack: ['public/**/*'],
+      extraResources: helperResources,
       compression: 'normal',
       electronLanguages: ['en-US', 'en-GB', 'de'],
       linux: {

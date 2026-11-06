@@ -38,10 +38,11 @@ Electron, Vite, Quasar/Vue 3, Node.js, Express.
 
 ## Entwickeln
 
-Voraussetzung: [Node.js](https://nodejs.org) (LTS).
+Voraussetzung: [Node.js](https://nodejs.org) (LTS) und [Go](https://go.dev) (für den Hilfsdienst der Internetsperre, siehe [helper/README.md](helper/README.md)).
 
 ```bash
 npm run install:dependencies
+npm run build:helper
 npm run dev
 ```
 

@@ -2,7 +2,7 @@
 
 ## Automatische Tests (ein Rechner)
 
-Voraussetzung: Node.js (LTS), einmalig `npm run install:dependencies`.
+Voraussetzung: Node.js (LTS) und Go, einmalig `npm run install:dependencies`.
 
 ```bash
 npm test
@@ -30,6 +30,11 @@ und die Schüler-App auf Gerät B starten (jeweils `npm --prefix teacher run dev
 | Unveränderter Bildschirm | Schülergerät 2 min nicht anfassen (Maus bewegen ist erlaubt) | Kachel orange, Zähler ⏸ 2:00 läuft weiter; Fenster wechseln → Zähler weg |
 | Bildschirme sperren | „Bildschirme sperren“ | Schülerbildschirm schwarz mit „Bildschirm gesperrt“; Entsperren hebt es auf |
 | Programmsperre | Vorlage wählen, „Programmsperre aktivieren“ | Schüler sieht 30-s-Countdown, danach werden nicht erlaubte Programme geschlossen und bei der Lehrkraft gemeldet |
+| Internetsperre einrichten | Schüler-App: „Internetsperre einrichten“ (Admin-Passwort) | Hinweis verschwindet; Windows: Dienst „Next-Class Helper“ läuft |
+| Internetsperre | Lehrer: „Internet sperren“ bis in 50 Minuten | Schüler: „Internet gesperrt bis …“; Browser lädt keine Seite, Lehrer-App und Netzlaufwerk funktionieren |
+| Hotspot | Während der Sperre Schülergerät mit Handy-Hotspot verbinden | Kein Internet; Lehrer sieht „Getrennt“ |
+| Manipulation | Windows (Admin): `Remove-NetFirewallRule -Group NextClass` | nach ≤ 3 s wieder gesperrt, Lehrer sieht „Firewall-Regel entfernt – wiederhergestellt“ |
+| Ende | Lehrer: „Internet freigeben“, oder Endzeit abwarten, oder Neustart | Internet wieder frei |
 | Programm übernehmen | ☰ auf einer Kachel → „Erlauben“ | Programm steht unter „Eigene Programme“ und wird nicht mehr geschlossen |
 
 **Wichtig zur Programmsperre:** Mit `npm run dev` (ungepackte App) werden Programme nur **gemeldet**,
@@ -44,4 +49,7 @@ Zum ersten Ausprobieren in der Klasse den Modus „Nur melden“ wählen und die
 - Verbindung zur Lehrkraft verloren → Programmsperre endet derzeit mit der Verbindung
   (die vereinbarte Regel „bis Endzeit + 5 min“ kommt mit Schritt 9).
 - Schüler können die App beenden – Erkennung und Meldung kommen mit Schritt 8.
-- Die Internetsperre fehlt noch (Schritte 6–7, Hilfsdienst mit Admin-Rechten).
+- Die Internetsperre ist nur im Probemodus getestet (Regeln werden berechnet, aber nicht gesetzt).
+  Vor dem ersten Klasseneinsatz unbedingt auf je einem Windows-, Mac- und ggf. Linux-Gerät von Hand testen
+  (Tabelle oben). Zum Rückgängigmachen: Neustart, oder `nextclass-helper uninstall` als Administrator.
+- Drittanbieter-Firewalls (z. B. Norton) können die Windows-Firewall ersetzen – dann greift die Sperre nicht.

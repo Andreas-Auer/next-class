@@ -5,12 +5,17 @@ import { test, expect, _electron as electron } from '@playwright/test';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
 
 const repoRoot = path.join(import.meta.dirname, '..');
 const electronMain = 'dist/electron/UnPackaged/electron-main.js';
 const teacherMain = path.join(repoRoot, 'teacher', electronMain);
 const studentMain = path.join(repoRoot, 'student', electronMain);
 const serverApiPort = '23522';   // isolated from a real Next-Class teacher on this machine
+const helperAddr = '127.0.0.1:23533';
+const goos = { win32: 'windows', darwin: 'darwin', linux: 'linux' }[process.platform];
+const goarch = process.arch === 'x64' ? 'amd64' : process.arch;
+const helperBin = path.join(repoRoot, 'helper', 'dist', `${goos}-${goarch}`, process.platform === 'win32' ? 'nextclass-helper.exe' : 'nextclass-helper');
 const shotDir = process.env.NC_E2E_SCREENSHOTS;   // optional: save UI screenshots for documentation
 
 async function shot(page, name) {
@@ -49,8 +54,16 @@ test('student joins with PIN, reconnects, gets locked and unlocked, then leaves'
   const sessionName = `e2e-${Date.now().toString().slice(-6)}`;
   const studentName = 'e2e-schueler';
   const profileRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'next-class-e2e-'));
+  // the real helper in dry-run mode: full API and watchdog, but the firewall is never touched
+  const helperToken = 'e2e-token-0123456789abcdef0123456789';
+  const tokenFile = path.join(profileRoot, 'helper-token');
+  await fs.writeFile(tokenFile, helperToken);
+  const helperProc = spawn(helperBin, ['run', '--dry-run', '--addr', helperAddr, '--token-file', tokenFile], { stdio: 'ignore' });
+  const helper = async (route, method = 'GET') => (await fetch(`http://${helperAddr}${route}`, { method, headers: { 'X-NextClass-Token': helperToken } })).json();
+
   const env = {
     ...process.env, DEBUG: '1', NXE_E2E_SERVER_API_PORT: serverApiPort,
+    NEXT_CLASS_HELPER_ADDR: helperAddr, NEXT_CLASS_HELPER_TOKEN_FILE: tokenFile,
     NEXT_CLASS_APPLOCK_GRACE: '4',                                            // short warning period for the test
     NEXT_CLASS_APPLOCK_FILE: path.join(profileRoot, 'applock.json'),          // keep test templates out of the real profile
   };
@@ -172,6 +185,34 @@ test('student joins with PIN, reconnects, gets locked and unlocked, then leaves'
       await expect(card().locator('[data-e2e="badge-applock"]')).toBeHidden({ timeout: 15_000 });
     });
 
+    await test.step('internet lock via the helper (dry-run): lock, tamper is repaired and reported, release', async () => {
+      await expect(student.locator('[data-e2e="netlock-setup"]')).toBeHidden();   // helper "installed" (token file present)
+      await teacher.locator('[data-e2e="netlock-end"]').selectOption('50');
+      await teacher.locator('[data-e2e="netlock-toggle"]').click();
+      await teacher.locator('.swal2-confirm').click();
+      await expect(teacher.locator('[data-e2e="netlock-until"]')).toBeVisible();
+      await expect(student.locator('[data-e2e="netlock-active"]')).toBeVisible({ timeout: 15_000 });
+      await expect(card().locator('[data-e2e="badge-netlock"]')).toBeVisible({ timeout: 15_000 });
+
+      const st = await helper('/v1/status');
+      expect(st.locked).toBe(true);
+      expect(st.allow.some((a) => /\/\d+$/.test(a) && !a.endsWith('/32'))).toBe(true);   // own subnet
+      const minutesLeft = (st.until - Date.now()) / 60000;
+      expect(minutesLeft).toBeGreaterThan(53);   // 50 min + 5 min buffer without contact
+      expect(minutesLeft).toBeLessThan(56);
+      const rules = await helper('/v1/dryrun/rules');
+      expect(rules.rules).toContain('meta nfproto ipv4 drop');
+
+      await helper('/v1/dryrun/tamper', 'POST');   // a student deletes the firewall rules
+      await expect(card().locator('[data-e2e="badge-tamper"]')).toBeVisible({ timeout: 20_000 });
+      await shot(teacher, '8-lehrer-internetsperre');
+      expect((await helper('/v1/status')).events[0].kind).toBe('restored');
+
+      await teacher.locator('[data-e2e="netlock-toggle"]').click();   // release
+      await expect(student.locator('[data-e2e="netlock-active"]')).toBeHidden({ timeout: 15_000 });
+      await expect.poll(async () => (await helper('/v1/status')).locked, { timeout: 15_000 }).toBe(false);
+    });
+
     await test.step('network dropout -> student reconnects automatically, teacher keeps one tile', async () => {
       await student.evaluate(() => window.ipcRenderer.invoke('e2e-drop-connection'));
       // the "reconnecting" notice may be visible only briefly - what matters is that the connection comes back by itself
@@ -216,6 +257,7 @@ test('student joins with PIN, reconnects, gets locked and unlocked, then leaves'
       await app?.evaluate(({ BrowserWindow }) => { for (const w of BrowserWindow.getAllWindows()) w.allowexit = true; }).catch(() => {});
       await app?.close().catch(() => {});
     }
+    helperProc.kill();
     await fs.rm(profileRoot, { recursive: true, force: true });
   }
 });

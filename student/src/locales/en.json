@@ -60,7 +60,14 @@
     "applocksave": "Please save now and close all programs that are not allowed – otherwise they will be closed automatically.",
     "applockactive": "Program lock active",
     "applockallowed": "Allowed:",
-    "applocknone": "system programs only"
+    "applocknone": "system programs only",
+    "netlockactive": "Internet blocked until {time}",
+    "netlockinfo": "The school network (teacher app, network drives) stays reachable. Local files and OneDrive folders keep working; OneDrive syncs automatically afterwards.",
+    "netlocksetupinfo": "For the internet lock in class Next-Class has to set up a small helper once. The computer will ask for the administrator password once.",
+    "netlocksetup": "Set up internet lock",
+    "netlockinstalling": "Setting up …",
+    "netlockinstalled": "The internet lock is set up.",
+    "netlockinstallfailed": "The setup did not work."
   },
   "general": {
     "ok": "OK",

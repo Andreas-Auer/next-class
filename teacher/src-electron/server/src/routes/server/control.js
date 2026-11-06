@@ -151,9 +151,17 @@ router.post('/update', (req, res) => {
     student.screenCaptureFailed = !!ci.screenCaptureError;
     if (typeof ci.platform === 'string') student.platform = ci.platform;
     if (ci.applock && typeof ci.applock === 'object') student.applock = ci.applock;
+    if (ci.netlock && typeof ci.netlock === 'object') student.netlock = ci.netlock;
     // inactivity: student sends a duration (not a timestamp) so clock differences between devices do not matter
     student.unchangedSince = Number.isFinite(ci.screenUnchangedSeconds) ? student.timestamp - ci.screenUnchangedSeconds * 1000 : null;
     if (!ci.screenshotinterval) student.imageurl = false;
+
+    // locks end exactly at their end time while the teacher app is running
+    const nl = session.serverstatus.netlock;
+    if (nl?.active && Date.now() >= nl.until) {
+        session.serverstatus.netlock = { active: false };
+        log.info(`control @ update: internet lock of "${session.serverinfo.servername}" ended (end time reached)`);
+    }
 
     const studentstatus = { ...student.status };
     if (student.status.kicked) {
@@ -169,6 +177,7 @@ router.post('/update', (req, res) => {
             screenslocked: !!session.serverstatus.screenslocked,
             idlethreshold: session.serverstatus.idlethreshold,
             applock: session.serverstatus.applock || { active: false },
+            netlock: session.serverstatus.netlock || { active: false },
             screenshotinterval: session.serverstatus.screenshotinterval,
         },
         studentstatus,
