@@ -109,6 +109,23 @@ test('student joins with PIN, reconnects, gets locked and unlocked, then leaves'
       else console.warn('live view: no screen recording permission on this machine - badge shown instead of an image');
     });
 
+    await test.step('unchanged screen -> teacher sees a counter from 2 minutes on', async () => {
+      await student.evaluate(() => window.ipcRenderer.invoke('e2e-force-unchanged', 90));
+      await teacher.waitForTimeout(7_000);   // two heartbeats
+      await expect(card().locator('[data-e2e="badge-idle"]')).toBeHidden();   // 1:30 is below the 2 min threshold
+      await student.evaluate(() => window.ipcRenderer.invoke('e2e-force-unchanged', 150));
+      const badge = card().locator('[data-e2e="badge-idle"]');
+      await expect(badge).toBeVisible({ timeout: 15_000 });
+      await expect(badge).toContainText(/⏸ 2:[3-5]\d/);
+      const first = await badge.textContent();
+      await teacher.waitForTimeout(2_200);
+      expect(await badge.textContent()).not.toBe(first);   // the counter keeps running
+      await shot(teacher, '5-lehrer-inaktiv');
+      await teacher.locator('[data-e2e="idle-threshold"]').selectOption('300');   // threshold 5 min -> badge disappears
+      await expect(badge).toBeHidden({ timeout: 5_000 });
+      await teacher.locator('[data-e2e="idle-threshold"]').selectOption('120');
+    });
+
     await test.step('network dropout -> student reconnects automatically, teacher keeps one tile', async () => {
       await student.evaluate(() => window.ipcRenderer.invoke('e2e-drop-connection'));
       // the "reconnecting" notice may be visible only briefly - what matters is that the connection comes back by itself

@@ -46,7 +46,11 @@
     "nopermissionhint": "macOS: Bildschirmaufnahme für Next-Class ist nicht erlaubt.",
     "kick": "Aus der Unterrichtseinheit entfernen",
     "kickconfirm": "{name} aus der Unterrichtseinheit entfernen?",
-    "disconnectedsince": "getrennt seit {time}"
+    "disconnectedsince": "getrennt seit {time}",
+    "idle": "Unveränderter Bildschirm",
+    "afterminutes": "anzeigen ab {m} min",
+    "sortidle": "Unveränderte zuerst",
+    "idlehint": "Der Bildschirm hat sich so lange nicht verändert (Mauszeiger und Uhr zählen nicht)."
   },
   "control": {
     "notfound": "Unterrichtseinheit nicht gefunden.",

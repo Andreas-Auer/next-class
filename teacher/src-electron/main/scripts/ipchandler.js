@@ -27,6 +27,7 @@ import i18n from '../../../src/locales/locales.js';
 const { t } = i18n.global;
 const SESSION_NAME_PATTERN = /^[a-z0-9äöüß][a-z0-9äöüß _.-]{0,39}$/;
 const DEFAULT_SCREENSHOT_INTERVAL_S = 4;
+const DEFAULT_IDLE_THRESHOLD_S = 120;   // show the "screen unchanged" counter after 2 minutes
 
 /** IPC between the teacher renderer and the main process (session lifecycle, student list, commands). */
 class IpcHandler {
@@ -63,6 +64,7 @@ class IpcHandler {
             multiMonitor: !!student.multiMonitor,
             screenPermission: student.screenPermission || 'unknown',
             screenCaptureFailed: !!student.screenCaptureFailed,
+            unchangedSince: student.unchangedSince ?? null,
         };
     }
 
@@ -86,7 +88,7 @@ class IpcHandler {
             const pin = this.config.development ? '1111' : String(Math.floor(Math.random() * 9000) + 1000);
             const session = new MulticastServer();
             session.init(servername, pin);
-            session.serverstatus = { screenslocked: false, screenshotinterval: DEFAULT_SCREENSHOT_INTERVAL_S };
+            session.serverstatus = { screenslocked: false, screenshotinterval: DEFAULT_SCREENSHOT_INTERVAL_S, idlethreshold: DEFAULT_IDLE_THRESHOLD_S };
             this.config.examServerList[servername] = session;
             log.info(`ipchandler @ startExamServer: session "${servername}" started`);
             return { status: 'success', servername, pin };
@@ -141,6 +143,9 @@ class IpcHandler {
             if (typeof payload.screenslocked === 'boolean') session.serverstatus.screenslocked = payload.screenslocked;
             if (Number.isFinite(payload.screenshotinterval) && payload.screenshotinterval >= 0) {
                 session.serverstatus.screenshotinterval = payload.screenshotinterval;
+            }
+            if (Number.isFinite(payload.idlethreshold) && payload.idlethreshold >= 0) {
+                session.serverstatus.idlethreshold = payload.idlethreshold;   // 0 = inactivity display off
             }
             log.info(`ipchandler @ setServerStatus: ${payload.servername} -> ${JSON.stringify(session.serverstatus)}`);
             return { status: 'success', serverstatus: session.serverstatus };

@@ -46,7 +46,11 @@
     "nopermissionhint": "macOS: screen recording is not allowed for Next-Class.",
     "kick": "Remove from session",
     "kickconfirm": "Remove {name} from the session?",
-    "disconnectedsince": "disconnected since {time}"
+    "disconnectedsince": "disconnected since {time}",
+    "idle": "Unchanged screen",
+    "afterminutes": "show after {m} min",
+    "sortidle": "Unchanged first",
+    "idlehint": "The screen has not changed for this long (mouse pointer and clock do not count)."
   },
   "control": {
     "notfound": "Session not found.",

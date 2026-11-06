@@ -21,6 +21,7 @@ import WindowHandler from './windowhandler.js';
 import { SchedulerService } from './schedulerservice.ts';
 import { syncClientDisplayInfo } from './displayInfo.js';
 import { examApiFetch, isCertificateError } from './examApiFetch.js';
+import { ScreenActivityTracker, SAMPLE_WIDTH, SAMPLE_HEIGHT, bgraToGray } from './screenActivity.js';
 
 const UPDATE_INTERVAL_MS = 5000;     // heartbeat to the teacher
 const MAX_LOST_HEARTBEATS = 5;       // ~25 s without contact -> registration is dropped locally
@@ -29,6 +30,7 @@ const SCREENSHOT_HEIGHT = 800;
 const SCREENSHOT_JPEG_QUALITY = 55;
 const RECONNECT_INTERVAL_MS = 5000;  // retry joining the last session after a network dropout
 const RECONNECT_GIVE_UP_MS = 30 * 60 * 1000;
+const IDLE_SAMPLE_INTERVAL_MS = 10000;   // how often the screen is compared for the inactivity display
 
 /**
  * Talks to the teacher while registered:
@@ -45,6 +47,9 @@ class CommHandler {
         this.lastSession = null;       // { clientname, servername, serverip, pin } - for the automatic reconnect
         this.lastReconnectTry = 0;
         this.registerFn = null;        // set by IpcHandler (avoids a circular import)
+        this.activity = new ScreenActivityTracker();
+        this.idleTimer = null;
+        this.idleForced = false;       // e2e only: fixed "unchanged since" value
     }
 
     /** Remember the joined session so a network dropout can be healed without the student doing anything. */
@@ -86,11 +91,41 @@ class CommHandler {
         this.updateScheduler = new SchedulerService(this.requestUpdate.bind(this), UPDATE_INTERVAL_MS);
         this.updateScheduler.start();
         this.scheduleScreenshot();
+        this.idleTimer = setInterval(() => this.sampleActivity(), IDLE_SAMPLE_INTERVAL_MS);
     }
 
     stop() {
         this.updateScheduler?.stop();
         clearTimeout(this.screenshotTimer);
+        clearInterval(this.idleTimer);
+    }
+
+    // ---- inactivity (screen unchanged) -------------------------------------
+
+    /** Compare a small grayscale sample of the screen with the last changed one (see screenActivity.js). */
+    async sampleActivity() {
+        const ci = this.multicastClient.clientinfo;
+        if (!ci.token) { this.activity.reset(); ci.screenUnchangedSeconds = null; return; }
+        if (this.idleForced) { ci.screenUnchangedSeconds = this.activity.unchangedSeconds(); return; }
+        try {
+            const primary = screen.getPrimaryDisplay();
+            const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: SAMPLE_WIDTH * 2, height: SAMPLE_HEIGHT * 2 } });
+            const source = sources.find((s) => String(s.display_id) === String(primary.id)) || sources[0];
+            if (!source || source.thumbnail.isEmpty()) throw new Error('empty capture');
+            const sample = source.thumbnail.resize({ width: SAMPLE_WIDTH, height: SAMPLE_HEIGHT, quality: 'good' });
+            ci.screenUnchangedSeconds = this.activity.addFrame(bgraToGray(sample.toBitmap(), SAMPLE_WIDTH, SAMPLE_HEIGHT));
+        } catch {
+            this.activity.reset();          // unknown (e.g. no screen recording permission) - never report a false "inactive"
+            ci.screenUnchangedSeconds = null;
+        }
+    }
+
+    /** e2e only: pretend the screen has been unchanged for the given seconds. */
+    forceUnchanged(seconds) {
+        this.idleForced = true;
+        this.activity.reference = new Uint8Array(1);
+        this.activity.unchangedSince = Date.now() - seconds * 1000;
+        this.multicastClient.clientinfo.screenUnchangedSeconds = this.activity.unchangedSeconds();
     }
 
     teacherUrl(route) {
@@ -106,6 +141,7 @@ class CommHandler {
         const ci = this.multicastClient.clientinfo;
         syncClientDisplayInfo(ci);
         ci.screenPermission = this.screenPermissionStatus();
+        if (ci.token) ci.screenUnchangedSeconds = this.activity.unchangedSeconds();   // fresh value with every heartbeat
 
         if (this.multicastClient.beaconsLost >= MAX_LOST_HEARTBEATS) {
             this.dropRegistration();
@@ -209,6 +245,9 @@ class CommHandler {
         ci.serverip = false;
         ci.servername = false;
         ci.pin = false;
+        ci.screenUnchangedSeconds = null;
+        this.activity.reset();
+        this.idleForced = false;
         this.killScreenlock();   // never leave a student locked without a teacher
     }
 

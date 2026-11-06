@@ -4,7 +4,8 @@
     "dev": "npm exec --prefix teacher -- concurrently \"npm --prefix teacher run dev\" \"npm exec --prefix student -- cross-env NXE_ELECTRON_INSPECT_PORT=5859 npm --prefix student run dev -- -p 9301\"",
     "build:all": "cd teacher && npm run build:electron:ui && cd ../student && npm run build:electron:ui",
     "test:e2e": "npm run build:all && npx playwright test e2e/",
-    "bump:build": "node scripts/bump-build-number.mjs"
+    "bump:build": "node scripts/bump-build-number.mjs",
+    "test": "npm --prefix student test"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

@@ -49,6 +49,19 @@
                 <option :value="0">{{ $t('dashboard.liveviewoff') }}</option>
             </select>
 
+            <label class="small text-secondary mt-3 mb-1" for="idlethreshold">{{ $t('dashboard.idle') }}</label>
+            <select id="idlethreshold" class="form-select form-select-sm" v-model.number="idlethreshold" data-e2e="idle-threshold" @change="saveIdleThreshold">
+                <option :value="60">{{ $t('dashboard.afterminutes', { m: 1 }) }}</option>
+                <option :value="120">{{ $t('dashboard.afterminutes', { m: 2 }) }}</option>
+                <option :value="180">{{ $t('dashboard.afterminutes', { m: 3 }) }}</option>
+                <option :value="300">{{ $t('dashboard.afterminutes', { m: 5 }) }}</option>
+                <option :value="0">{{ $t('dashboard.liveviewoff') }}</option>
+            </select>
+            <div class="form-check form-switch mt-2 small">
+                <input id="sortidle" type="checkbox" class="form-check-input" v-model="sortByIdle">
+                <label for="sortidle" class="form-check-label">{{ $t('dashboard.sortidle') }}</label>
+            </div>
+
             <div class="mt-auto small text-secondary">
                 {{ $t('dashboard.counts', { online: onlineCount, total: students.length }) }}
             </div>
@@ -61,8 +74,8 @@
                 <p>{{ $t('dashboard.nostudentshint', { pin }) }}</p>
             </div>
             <div class="d-flex flex-wrap gap-3">
-                <div v-for="student in students" :key="student.clientname" class="studentwidget card shadow-sm"
-                     :class="{ offline: !student.online }" :data-e2e="`student-${student.clientname}`">
+                <div v-for="student in sortedStudents" :key="student.clientname" class="studentwidget card shadow-sm"
+                     :class="{ offline: !student.online, idle: idleSeconds(student) !== null }" :data-e2e="`student-${student.clientname}`">
                     <div class="thumb" @click="showLarge(student)">
                         <img v-if="student.imageurl && student.online" :src="student.imageurl" class="w-100 h-100" style="object-fit: contain;">
                         <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center text-secondary small">
@@ -77,6 +90,8 @@
                         <div class="d-flex flex-wrap gap-1 mt-1">
                             <span v-if="student.online" class="badge bg-success" data-e2e="badge-online">{{ $t('dashboard.online') }}</span>
                             <span v-else class="badge bg-secondary" data-e2e="badge-offline">{{ $t('dashboard.disconnectedsince', { time: formatTime(student.lastSeen) }) }}</span>
+                            <span v-if="idleSeconds(student) !== null" class="badge idlebadge" data-e2e="badge-idle"
+                                  :title="$t('dashboard.idlehint')">⏸ {{ formatDuration(idleSeconds(student)) }}</span>
                             <span v-if="student.online && student.screenlock" class="badge bg-warning text-dark" data-e2e="badge-locked">{{ $t('dashboard.locked') }}</span>
                             <span v-if="student.multiMonitor" class="badge bg-info text-dark">{{ $t('dashboard.multimonitor') }}</span>
                             <span v-if="student.online && (student.screenCaptureFailed || student.screenPermission === 'denied' || student.screenPermission === 'not-determined')"
@@ -101,12 +116,20 @@ export default {
             serverip: '',
             screenslocked: false,
             screenshotinterval: 4,
+            idlethreshold: 120,
+            sortByIdle: false,
+            now: Date.now(),
             students: [],
             pollTimer: null,
+            clockTimer: null,
         }
     },
     computed: {
         onlineCount() { return this.students.filter((s) => s.online).length },
+        sortedStudents() {
+            if (!this.sortByIdle) return this.students
+            return [...this.students].sort((a, b) => (this.idleSeconds(b) ?? -1) - (this.idleSeconds(a) ?? -1))
+        },
     },
     async mounted() {
         const info = await window.ipcRenderer.invoke('getSessionInfo', this.servername)
@@ -115,13 +138,30 @@ export default {
         this.serverip = info.serverip
         this.screenslocked = !!info.serverstatus?.screenslocked
         this.screenshotinterval = info.serverstatus?.screenshotinterval ?? 4
+        this.idlethreshold = info.serverstatus?.idlethreshold ?? 120
+        this.clockTimer = setInterval(() => { this.now = Date.now() }, 1000)   // the idle counter ticks every second
         await this.fetchStudents()
         this.pollTimer = setInterval(() => this.fetchStudents(), POLL_MS)
     },
     beforeUnmount() {
         clearInterval(this.pollTimer)
+        clearInterval(this.clockTimer)
     },
     methods: {
+        /** Seconds the screen has been unchanged, or null when below the threshold / unknown / off. */
+        idleSeconds(student) {
+            if (!this.idlethreshold || !student.online || !student.unchangedSince) return null
+            const seconds = Math.floor((this.now - student.unchangedSince) / 1000)
+            return seconds >= this.idlethreshold ? seconds : null
+        },
+        formatDuration(seconds) {
+            const m = Math.floor(seconds / 60)
+            const s = String(seconds % 60).padStart(2, '0')
+            return m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}:${s}` : `${m}:${s}`
+        },
+        saveIdleThreshold() {
+            this.setStatus({ idlethreshold: this.idlethreshold })
+        },
         formatTime(ts) {
             return new Date(ts).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' })
         },
@@ -135,6 +175,7 @@ export default {
             if (result.status === 'success') {
                 this.screenslocked = result.serverstatus.screenslocked
                 this.screenshotinterval = result.serverstatus.screenshotinterval
+                this.idlethreshold = result.serverstatus.idlethreshold
             }
         },
         toggleScreenlock() {
@@ -189,5 +230,7 @@ export default {
 .infobox { background: #2b3035; border-radius: 4px; padding: 8px 10px; }
 .studentwidget { width: 260px; }
 .studentwidget.offline { opacity: 0.6; }
+.studentwidget.idle { outline: 3px solid #fd7e14; }
+.idlebadge { background-color: #fd7e14; color: #fff; font-variant-numeric: tabular-nums; }
 .thumb { height: 150px; background: #e9ecef; cursor: zoom-in; border-top-left-radius: 4px; border-top-right-radius: 4px; overflow: hidden; }
 </style>

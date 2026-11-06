@@ -257,6 +257,7 @@ class IpcHandler {
         // test hook: simulate a network dropout (only in e2e runs)
         if (process.env.NXE_E2E_SERVER_API_PORT) {
             ipcMain.handle('e2e-drop-connection', () => this.CommHandler.dropRegistration());
+            ipcMain.handle('e2e-force-unchanged', (_e, seconds) => this.CommHandler.forceUnchanged(Number(seconds) || 0));
         }
 
         /** Student leaves the session: tell the teacher (best effort), then forget the registration. */

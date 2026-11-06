@@ -27,7 +27,8 @@
     "build:mac:arm64": "npm run prebuild && npm run clean && cross-env NXE_EB_MAC_ARCH=arm64 quasar build -m electron -T mac -A arm64",
     "build:win:portable": "npm run prebuild && npm run clean && quasar build -m electron -T win -A x64",
     "build:win:msi": "npm run prebuild && npm run clean && cross-env NXE_EB_WIN_TARGET=msi quasar build -m electron -T win -A x64",
-    "build:win:all": "npm run prebuild && npm run clean && cross-env NXE_EB_WIN_TARGET=both quasar build -m electron -T win -A x64"
+    "build:win:all": "npm run prebuild && npm run clean && cross-env NXE_EB_WIN_TARGET=both quasar build -m electron -T win -A x64",
+    "test": "node --test \"tests/*.test.mjs\""
   },
   "keywords": [
     "electron",
