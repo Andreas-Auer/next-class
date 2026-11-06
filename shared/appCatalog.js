@@ -105,12 +105,15 @@ const BLOCKLIST_ENTRY = { 'ms-teams': 'teams', teams: 'teams', msteams: 'teams' 
 export const PROTECTED = {
     win: ['explorer', 'dwm', 'shellexperiencehost', 'startmenuexperiencehost', 'searchhost', 'searchapp', 'textinputhost',
         'applicationframehost', 'systemsettings', 'lockapp', 'logonui', 'taskmgr', 'securityhealthsystray', 'ctfmon',
-        'rundll32', 'consent', 'credentialuibroker', 'openwith', 'pickerhost', 'widgets', 'nvidia overlay', 'crashpad_handler'],
+        'rundll32', 'consent', 'credentialuibroker', 'openwith', 'pickerhost', 'widgets', 'nvidia overlay', 'crashpad_handler',
+        'next-class-student', 'next-class-teacher'],
     mac: ['com.apple.finder', 'com.apple.dock', 'com.apple.systemuiserver', 'com.apple.controlcenter', 'com.apple.notificationcenterui',
         'com.apple.Spotlight', 'com.apple.loginwindow', 'com.apple.systempreferences', 'com.apple.ActivityMonitor',
         'com.apple.SecurityAgent', 'com.apple.coreservices.uiagent', 'com.apple.screencaptureui', 'com.apple.Siri',
-        'com.github.Electron', 'com.nextclass.student'],
-    linux: ['gnome-shell', 'plasmashell', 'kwin_x11', 'kwin_wayland', 'xfwm4', 'xfce4-panel', 'nautilus', 'dolphin', 'thunar', 'nemo'],
+        'com.github.Electron', 'com.nextclass.student', 'com.nextclass.teacher'],
+    linux: ['gnome-shell', 'plasmashell', 'kwin_x11', 'kwin_wayland', 'xfwm4', 'xfce4-panel', 'nautilus', 'dolphin', 'thunar', 'nemo',
+        // Next-Class itself (comm is cut to 15 characters on Linux)
+        'next-class-student', 'next-class-stud', 'next-class-teacher', 'next-class-teac'],
 };
 
 /** Glob (only * supported) -> case-insensitive RegExp. */

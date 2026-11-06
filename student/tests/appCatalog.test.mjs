@@ -49,6 +49,12 @@ test('macOS: bundle id or app name match, system UI protected', () => {
     assert.equal(classify({ name: 'sociallayerd', bundleId: 'com.apple.sociallayerd', windowed: true, system: true }, cad, 'darwin'), 'protected');
 });
 
+test('Next-Class itself is never closed on any platform', () => {
+    assert.equal(classify({ name: 'Next-Class-Student', exe: 'C:\\Program Files\\Next-Class-Student\\Next-Class-Student.exe', windowed: true }, cad, 'win32'), 'protected');
+    assert.equal(classify({ name: 'next-class-stud', windowed: true }, cad, 'linux'), 'protected');
+    assert.equal(classify({ name: 'Next-Class-Teacher', bundleId: 'com.nextclass.teacher', windowed: true }, cad, 'darwin'), 'protected');
+});
+
 test('linux: process name match', () => {
     const gis = resolveEntries(BUILTIN_TEMPLATES.find((t) => t.id === 'builtin-gis').allowed);
     assert.equal(classify({ name: 'qgis', windowed: true }, gis, 'linux'), 'allowed');
