@@ -128,11 +128,54 @@ class IpcHandler {
         };
     }
 
+    /**
+     * Register at a teacher session. Used by the join button and by the automatic reconnect.
+     * args: { clientname, servername, serverip, pin }
+     */
+    async register(args = {}) {
+        const ci = this.multicastClient.clientinfo;
+        if (ci.token) return { status: 'error', code: 'ALREADY_REGISTERED' };
+
+        const clientname = normalizeStudentClientName(args.clientname);
+        const { pin, serverip, servername } = args;
+        if (!clientname || !pin || !serverip || !servername) return { status: 'error', code: 'MISSING_INPUT' };
+
+        const certificate = await this.probeTeacherCertificate(serverip);
+        if (certificate.status !== 'trusted') return { ...certificate, serverip };
+
+        const clientip = this.config.hostip || ip.address();
+        const hostname = os.hostname();
+        const payload = {
+            pin, clientname, clientip, hostname,
+            version: this.config.version,
+            reconnectToken: this.multicastClient.reconnectToken || undefined,
+        };
+        try {
+            const packet = await encryptSessionPayload(payload, pin);
+            const response = await examApiFetch(
+                `https://${serverip}:${this.config.serverApiPort}/server/control/registerclient/${encodeURIComponent(servername)}`,
+                { method: 'POST', signal: AbortSignal.timeout(8000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ packet }) }
+            );
+            const data = await response.json();
+            if (data?.status !== 'success') return { status: 'error', message: data?.message, code: data?.code };
+
+            Object.assign(ci, { name: clientname, serverip, servername, ip: clientip, hostname, token: data.token, pin, reconnecting: false });
+            this.multicastClient.reconnectToken = data.token;
+            this.multicastClient.beaconsLost = 0;
+            this.CommHandler.rememberSession({ clientname, servername, serverip, pin });
+            log.info(`ipchandler @ register: ${data.reconnected ? 'reconnected to' : 'joined'} "${servername}" @ ${serverip} as ${clientname}`);
+            return data;
+        } catch (error) {
+            return { status: 'error', code: error.name === 'TimeoutError' || error.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK', detail: error.message };
+        }
+    }
+
     init(mc, config, wh, ch) {
         this.multicastClient = mc;
         this.config = config;
         this.WindowHandler = wh;
         this.CommHandler = ch;
+        this.CommHandler.registerFn = (args) => this.register(args);   // used for the automatic reconnect
 
         ipcMain.on('getconfig', (event) => {
             event.returnValue = JSON.parse(JSON.stringify(this.config));
@@ -208,42 +251,13 @@ class IpcHandler {
         /** Join a session: { clientname, servername, serverip, pin }. */
         ipcMain.handle('register', async (event, args = {}) => {
             if (!this.fromMainWindow(event)) return { status: 'error', code: 'INVALID_SOURCE' };
-            const ci = this.multicastClient.clientinfo;
-            if (ci.token) return { status: 'error', code: 'ALREADY_REGISTERED' };
-
-            const clientname = normalizeStudentClientName(args.clientname);
-            const { pin, serverip, servername } = args;
-            if (!clientname || !pin || !serverip || !servername) return { status: 'error', code: 'MISSING_INPUT' };
-
-            const certificate = await this.probeTeacherCertificate(serverip);
-            if (certificate.status !== 'trusted') return certificate;
-
-            const clientip = this.config.hostip || ip.address();
-            const hostname = os.hostname();
-            const payload = {
-                pin, clientname, clientip, hostname,
-                version: this.config.version,
-                reconnectToken: this.multicastClient.reconnectToken || undefined,
-            };
-            try {
-                const packet = await encryptSessionPayload(payload, pin);
-                const response = await examApiFetch(
-                    `https://${serverip}:${this.config.serverApiPort}/server/control/registerclient/${encodeURIComponent(servername)}`,
-                    { method: 'POST', signal: AbortSignal.timeout(8000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ packet }) }
-                );
-                const data = await response.json();
-                if (data?.status !== 'success') return { status: 'error', message: data?.message, code: data?.code };
-
-                Object.assign(ci, { name: clientname, serverip, servername, ip: clientip, hostname, token: data.token, pin });
-                this.multicastClient.reconnectToken = data.token;
-                this.multicastClient.beaconsLost = 0;
-                log.info(`ipchandler @ register: joined "${servername}" @ ${serverip} as ${clientname}`);
-                return data;
-            } catch (error) {
-                log.error(`ipchandler @ register: ${error.message}`);
-                return { status: 'error', code: error.name === 'TimeoutError' || error.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK', detail: error.message };
-            }
+            return this.register(args);
         });
+
+        // test hook: simulate a network dropout (only in e2e runs)
+        if (process.env.NXE_E2E_SERVER_API_PORT) {
+            ipcMain.handle('e2e-drop-connection', () => this.CommHandler.dropRegistration());
+        }
 
         /** Student leaves the session: tell the teacher (best effort), then forget the registration. */
         ipcMain.handle('disconnect', async () => {
@@ -261,6 +275,7 @@ class IpcHandler {
                 }
             }
             log.info('ipchandler @ disconnect: student left the session');
+            this.CommHandler.forgetSession();
             this.CommHandler.resetConnection();
             this.multicastClient.reconnectToken = false;
             return { status: 'success' };

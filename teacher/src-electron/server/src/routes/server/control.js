@@ -63,7 +63,7 @@ router.post('/registerclient/:servername', async (req, res) => {
     try {
         payload = await decryptSessionPayload(req.body?.packet, String(session.serverinfo.pin || ''));
     } catch {
-        return res.send({ sender: 'server', message: t('control.wrongpin'), status: 'error' });   // wrong PIN -> decryption fails
+        return res.send({ sender: 'server', message: t('control.wrongpin'), code: 'WRONG_PIN', status: 'error' });   // wrong PIN -> decryption fails
     }
 
     const clientname = normalizeStudentClientName(payload?.clientname);
@@ -71,12 +71,12 @@ router.post('/registerclient/:servername', async (req, res) => {
     if (!pin || !clientname || !clientip || !hostname || !version) {
         return res.send({ sender: 'server', message: t('control.invalidpayload'), status: 'error' });
     }
-    if (pin !== session.serverinfo.pin) return res.send({ sender: 'server', message: t('control.wrongpin'), status: 'error' });
+    if (pin !== session.serverinfo.pin) return res.send({ sender: 'server', message: t('control.wrongpin'), code: 'WRONG_PIN', status: 'error' });
 
     // major.minor must match - protocol changes between minor versions
     const majorMinor = (v) => String(v).split('.').slice(0, 2).join('.');
     if (majorMinor(version) !== majorMinor(config.version)) {
-        return res.send({ sender: 'server', message: t('control.versionmismatch', { version: config.version }), status: 'error' });
+        return res.send({ sender: 'server', message: t('control.versionmismatch', { version: config.version }), code: 'VERSION_MISMATCH', status: 'error' });
     }
 
     const existing = session.studentList.find((s) => s.clientname === clientname);
@@ -100,12 +100,10 @@ router.post('/registerclient/:servername', async (req, res) => {
         return res.send({ sender: 'server', message: t('control.registered'), status: 'success', token });
     }
 
-    // name already in the list: allow a reconnect only for the same device (token proof) after it went offline
-    if (now - existing.timestamp <= STUDENT_OFFLINE_AFTER_MS) {
-        return res.send({ sender: 'server', message: t('control.nametaken'), status: 'error' });
-    }
+    // name already in the list: only the same device may take it over again (it proves this with its old token)
     if (reconnectToken !== existing.token) {
-        return res.send({ sender: 'server', code: 'RECONNECT_AUTH_FAILED', status: 'error' });
+        const online = now - existing.timestamp <= STUDENT_OFFLINE_AFTER_MS;
+        return res.send({ sender: 'server', message: t('control.nametaken'), code: online ? 'NAME_TAKEN' : 'RECONNECT_AUTH_FAILED', status: 'error' });
     }
     existing.timestamp = now;
     existing.clientip = clientip;

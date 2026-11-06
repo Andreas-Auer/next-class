@@ -49,8 +49,13 @@
       "NETWORK": "Netzwerkfehler beim Beitreten.",
       "RECONNECT_AUTH_FAILED": "Dieser Name ist in der Unterrichtseinheit bereits vergeben.",
       "CLOCK_SKEW": "Die Uhrzeit dieses Geräts weicht zu stark ab. Bitte Uhrzeit prüfen.",
-      "CERT": "Die Verbindung zur Lehrer-App konnte nicht abgesichert werden."
-    }
+      "CERT": "Die Verbindung zur Lehrer-App konnte nicht abgesichert werden.",
+      "WRONG_PIN": "Keine Unterrichtseinheit mit dieser PIN gefunden.",
+      "NAME_TAKEN": "Dieser Name ist in der Unterrichtseinheit bereits verbunden. Bitte einen anderen Namen wählen.",
+      "VERSION_MISMATCH": "Die Schüler-App passt nicht zur Version der Lehrer-App."
+    },
+    "reconnecting": "Verbindung zu „{name}“ unterbrochen – Next-Class verbindet automatisch neu …",
+    "joinonly": "Nur dieser beitreten"
   },
   "general": {
     "ok": "OK",

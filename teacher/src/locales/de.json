@@ -45,7 +45,8 @@
     "nopermission": "Keine Bildfreigabe",
     "nopermissionhint": "macOS: Bildschirmaufnahme für Next-Class ist nicht erlaubt.",
     "kick": "Aus der Unterrichtseinheit entfernen",
-    "kickconfirm": "{name} aus der Unterrichtseinheit entfernen?"
+    "kickconfirm": "{name} aus der Unterrichtseinheit entfernen?",
+    "disconnectedsince": "getrennt seit {time}"
   },
   "control": {
     "notfound": "Unterrichtseinheit nicht gefunden.",

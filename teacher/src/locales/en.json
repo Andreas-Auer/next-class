@@ -45,7 +45,8 @@
     "nopermission": "No screen access",
     "nopermissionhint": "macOS: screen recording is not allowed for Next-Class.",
     "kick": "Remove from session",
-    "kickconfirm": "Remove {name} from the session?"
+    "kickconfirm": "Remove {name} from the session?",
+    "disconnectedsince": "disconnected since {time}"
   },
   "control": {
     "notfound": "Session not found.",

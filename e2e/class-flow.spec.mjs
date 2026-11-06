@@ -44,7 +44,7 @@ async function closeSwal(page) {
   if (await confirm.isVisible({ timeout: 1_000 }).catch(() => false)) await confirm.click();
 }
 
-test('student joins a session, gets locked and unlocked, then leaves', async () => {
+test('student joins with PIN, reconnects, gets locked and unlocked, then leaves', async () => {
   test.setTimeout(180_000);
   const sessionName = `e2e-${Date.now().toString().slice(-6)}`;
   const studentName = 'e2e-schueler';
@@ -76,13 +76,17 @@ test('student joins a session, gets locked and unlocked, then leaves', async () 
       attachDiagnostics('STUDENT', studentApp, student);
       await confirmInterfacePicker(student);
       await student.locator('[data-e2e="name"]').fill(studentName);
-      await student.locator('[data-e2e="pin"]').fill(pin);
+      await student.locator('[data-e2e="pin"]').fill(pin === '0000' ? '0001' : '0000');   // wrong PIN first
       const manual = student.locator('[data-e2e="manual-search"]');
       if (!(await manual.isChecked())) await manual.check();
       await student.locator('[data-e2e="server-ip"]').fill('127.0.0.1');
-      await expect(student.locator(`[data-e2e="join-${sessionName}"]`)).toBeVisible({ timeout: 30_000 });
+      await expect(student.locator(`[data-e2e="session-${sessionName}"]`)).toBeVisible({ timeout: 30_000 });
+      await student.locator('[data-e2e="join"]').click();
+      await expect(student.locator('.swal2-html-container')).toContainText('PIN', { timeout: 20_000 });
+      await closeSwal(student);
+      await student.locator('[data-e2e="pin"]').fill(pin);
       await shot(student, '2-schueler-beitreten');
-      await student.locator(`[data-e2e="join-${sessionName}"]`).click();
+      await student.locator('[data-e2e="join"]').click();   // name + PIN only, the matching session is found automatically
       await expect(student.locator('.swal2-title')).toHaveText('OK', { timeout: 20_000 });
       await closeSwal(student);
       await expect(student.locator('[data-e2e="connected-card"]')).toBeVisible();
@@ -105,6 +109,16 @@ test('student joins a session, gets locked and unlocked, then leaves', async () 
       else console.warn('live view: no screen recording permission on this machine - badge shown instead of an image');
     });
 
+    await test.step('network dropout -> student reconnects automatically, teacher keeps one tile', async () => {
+      await student.evaluate(() => window.ipcRenderer.invoke('e2e-drop-connection'));
+      // the "reconnecting" notice may be visible only briefly - what matters is that the connection comes back by itself
+      await expect.poll(async () => (await student.evaluate(() => window.ipcRenderer.invoke('getinfoasync'))).clientinfo.token, { timeout: 5_000 }).toBeFalsy();
+      await expect.poll(async () => (await student.evaluate(() => window.ipcRenderer.invoke('getinfoasync'))).clientinfo.token, { timeout: 20_000 }).toBeTruthy();
+      await expect(student.locator('[data-e2e="connected-card"]')).toBeVisible({ timeout: 10_000 });
+      await expect(teacher.locator('.studentwidget')).toHaveCount(1);
+      await expect(card().locator('[data-e2e="badge-online"]')).toBeVisible({ timeout: 10_000 });
+    });
+
     await test.step('teacher locks screens -> student shows lock window', async () => {
       await teacher.locator('[data-e2e="lock-screens"]').click();
       await expect.poll(() => studentApp.windows().some((p) => p.url().includes('#/lock')), { timeout: 20_000 }).toBe(true);
@@ -121,8 +135,12 @@ test('student joins a session, gets locked and unlocked, then leaves', async () 
     await test.step('student leaves -> teacher list is empty', async () => {
       await student.locator('[data-e2e="leave"]').click();
       await student.locator('.swal2-confirm').click();
-      await expect(student.locator(`[data-e2e="join-${sessionName}"]`)).toBeVisible({ timeout: 20_000 });
+      await expect(student.locator('[data-e2e="join"]')).toBeVisible({ timeout: 20_000 });
       await expect(card()).toBeHidden({ timeout: 10_000 });
+      // no automatic reconnect after leaving on purpose
+      await student.waitForTimeout(7_000);
+      await expect(student.locator('[data-e2e="reconnecting"]')).toBeHidden();
+      await expect(card()).toBeHidden();
     });
 
     await test.step('teacher ends the session', async () => {

@@ -6,7 +6,7 @@ Jeder Schritt bekommt einen eigenen Branch (`step-N-…`) und eine Testanleitung
 |---|---|---|
 | 1 | Branding & Trennung von Next-Exam (Name, App-IDs, Ports, Multicast-Adresse, MSI-Upgrade-Codes, Secrets, Fork-Hinweis in README und About-Dialog) | erledigt (`step-1-branding`) |
 | 2 | Entschlacken: Prüfungsmodi, QEMU, LanguageTool, PDF/Signatur, BiP, Moodle, MSAL, SEB, iOS und Kiosk entfernen; Schüler-App als normales Fenster | erledigt (`step-2-slim`) |
-| 3 | Unterrichtseinheit: Start mit Code, automatisches Finden, manuelle IP, Status frei / gesperrt / getrennt | offen |
+| 3 | Unterrichtseinheit: Beitritt nur mit Name + PIN, automatisches Finden, manuelle IP, automatisches Wiederverbinden, Status verbunden / getrennt seit | erledigt (`step-3-join`) |
 | 4 | Inaktivitäts-Anzeige: Bildschirm unverändert, Zähler ab 2 min | offen |
 | 5 | Programmsperre mit Freigabeliste, Vorlagen, Katalog und Vorwarnung (ohne Admin-Rechte) | offen |
 | 6 | Hilfsdienst-Gerüst Windows (Go, Installer, IPC, Aufräumen beim Booten, Lease) | offen |

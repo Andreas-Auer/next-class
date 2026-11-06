@@ -27,6 +27,8 @@ const MAX_LOST_HEARTBEATS = 5;       // ~25 s without contact -> registration is
 const SCREENSHOT_WIDTH = 1280;       // live-view thumbnail size (keeps the upload small)
 const SCREENSHOT_HEIGHT = 800;
 const SCREENSHOT_JPEG_QUALITY = 55;
+const RECONNECT_INTERVAL_MS = 5000;  // retry joining the last session after a network dropout
+const RECONNECT_GIVE_UP_MS = 30 * 60 * 1000;
 
 /**
  * Talks to the teacher while registered:
@@ -40,6 +42,42 @@ class CommHandler {
         this.updateScheduler = null;
         this.screenshotTimer = null;
         this.screenshotBusy = false;
+        this.lastSession = null;       // { clientname, servername, serverip, pin } - for the automatic reconnect
+        this.lastReconnectTry = 0;
+        this.registerFn = null;        // set by IpcHandler (avoids a circular import)
+    }
+
+    /** Remember the joined session so a network dropout can be healed without the student doing anything. */
+    rememberSession(session) {
+        this.lastSession = session;
+    }
+
+    /** Student left, was removed or the session ended: do not reconnect. */
+    forgetSession() {
+        this.lastSession = null;
+        this.multicastClient.clientinfo.reconnecting = false;
+    }
+
+    /** Try to join the last session again (same name + token -> the teacher keeps the student's tile). */
+    async tryReconnect() {
+        const ci = this.multicastClient.clientinfo;
+        if (ci.token || !this.lastSession || !this.registerFn) return;
+        if (Date.now() - this.lastReconnectTry < RECONNECT_INTERVAL_MS) return;
+        this.lastReconnectTry = Date.now();
+        ci.reconnecting = this.lastSession.servername;
+
+        // the teacher may have a new ip (e.g. other WLAN access point) - prefer the address from its beacon
+        const beacon = this.multicastClient.examServerList.find((s) => s.servername === this.lastSession.servername);
+        const serverip = beacon?.serverip || this.lastSession.serverip;
+        const result = await this.registerFn({ ...this.lastSession, serverip });
+        if (result?.status === 'success') {
+            log.info('communicationhandler @ tryReconnect: connection restored');
+        } else if (['WRONG_PIN', 'NAME_TAKEN', 'RECONNECT_AUTH_FAILED', 'VERSION_MISMATCH'].includes(result?.code)
+            || result?.status === 'fingerprint-changed'                     // teacher app restarted -> old session is gone
+            || Date.now() - this.lastSession.lostAt > RECONNECT_GIVE_UP_MS) {
+            log.warn(`communicationhandler @ tryReconnect: giving up (${result?.code || result?.status || 'timeout'})`);
+            this.forgetSession();
+        }
     }
 
     init(mc, config) {
@@ -73,7 +111,11 @@ class CommHandler {
             this.dropRegistration();
             return;
         }
-        if (!ci.serverip || !ci.token) return;
+        if (!ci.token) {
+            await this.tryReconnect();
+            return;
+        }
+        if (!ci.serverip) return;
 
         try {
             const response = await examApiFetch(this.teacherUrl('update'), {
@@ -93,11 +135,13 @@ class CommHandler {
             }
             if (data.message === 'removed') {   // teacher removed us (kick) or restarted the session
                 log.warn('communicationhandler @ requestUpdate: registration no longer known by the teacher');
+                this.forgetSession();
                 this.resetConnection();
                 return;
             }
             if (data.message === 'notavailable') {   // session ended, teacher app still running
                 log.warn('communicationhandler @ requestUpdate: session not available anymore');
+                this.forgetSession();
                 this.multicastClient.beaconsLost = MAX_LOST_HEARTBEATS;
                 return;
             }
@@ -120,6 +164,7 @@ class CommHandler {
 
         if (studentstatus.kicked) {
             log.warn('communicationhandler @ processUpdate: removed from the session by the teacher');
+            this.forgetSession();
             this.resetConnection();
             return;
         }
@@ -149,6 +194,10 @@ class CommHandler {
     /** Connection to the teacher lost: forget the registration but remember the token for a reconnect. */
     dropRegistration() {
         log.warn('communicationhandler @ dropRegistration: connection to teacher lost, removing registration');
+        if (this.lastSession) {
+            this.lastSession.lostAt = Date.now();
+            this.multicastClient.clientinfo.reconnecting = this.lastSession.servername;   // shown by the renderer right away
+        }
         this.multicastClient.beaconsLost = 0;
         this.resetConnection();
     }

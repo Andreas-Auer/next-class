@@ -76,7 +76,7 @@
                         </div>
                         <div class="d-flex flex-wrap gap-1 mt-1">
                             <span v-if="student.online" class="badge bg-success" data-e2e="badge-online">{{ $t('dashboard.online') }}</span>
-                            <span v-else class="badge bg-secondary">{{ $t('dashboard.disconnected') }}</span>
+                            <span v-else class="badge bg-secondary" data-e2e="badge-offline">{{ $t('dashboard.disconnectedsince', { time: formatTime(student.lastSeen) }) }}</span>
                             <span v-if="student.online && student.screenlock" class="badge bg-warning text-dark" data-e2e="badge-locked">{{ $t('dashboard.locked') }}</span>
                             <span v-if="student.multiMonitor" class="badge bg-info text-dark">{{ $t('dashboard.multimonitor') }}</span>
                             <span v-if="student.online && (student.screenCaptureFailed || student.screenPermission === 'denied' || student.screenPermission === 'not-determined')"
@@ -122,6 +122,9 @@ export default {
         clearInterval(this.pollTimer)
     },
     methods: {
+        formatTime(ts) {
+            return new Date(ts).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' })
+        },
         async fetchStudents() {
             const result = await window.ipcRenderer.invoke('studentlist', this.servername)
             if (result.status !== 'success') return

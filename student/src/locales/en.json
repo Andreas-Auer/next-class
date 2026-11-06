@@ -49,8 +49,13 @@
       "NETWORK": "Network error while joining.",
       "RECONNECT_AUTH_FAILED": "This name is already taken in the session.",
       "CLOCK_SKEW": "This device's clock is too far off. Please check the time.",
-      "CERT": "The connection to the teacher app could not be secured."
-    }
+      "CERT": "The connection to the teacher app could not be secured.",
+      "WRONG_PIN": "No session found with this PIN.",
+      "NAME_TAKEN": "This name is already connected in the session. Please choose another name.",
+      "VERSION_MISMATCH": "The student app does not match the teacher app version."
+    },
+    "reconnecting": "Connection to “{name}” lost – Next-Class reconnects automatically …",
+    "joinonly": "Join only this one"
   },
   "general": {
     "ok": "OK",

@@ -70,6 +70,10 @@
 
             <!-- not connected -->
             <template v-else>
+                <div v-if="clientinfo.reconnecting" class="alert alert-warning d-flex align-items-center" style="max-width: 560px;" data-e2e="reconnecting">
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    {{ $t('student.reconnecting', { name: clientinfo.reconnecting }) }}
+                </div>
                 <div class="mb-3" style="max-width: 420px;">
                     <div class="input-group mb-1">
                         <span class="input-group-text" style="width: 130px;">{{ $t('student.name') }}</span>
@@ -83,6 +87,9 @@
                         <span class="input-group-text" style="width: 130px;">{{ $t('student.ip') }}</span>
                         <input v-model.trim="serverip" class="form-control" :class="{ 'is-invalid': !validip }" id="serverip" data-e2e="server-ip">
                     </div>
+                    <button class="btn btn-info mt-2 px-4" :disabled="joining || serverlist.length === 0" data-e2e="join" @click="joinByPin">
+                        <span v-if="joining" class="spinner-border spinner-border-sm me-1"></span>{{ $t('student.join') }}
+                    </button>
                 </div>
 
                 <h5 class="mt-4">{{ $t('student.sessions') }}</h5>
@@ -97,9 +104,9 @@
                             <img v-if="server.reachable === false" src="/img/svg/emblem-warning.svg" width="18" height="18"
                                  :title="server.certChanged ? $t('student.certchanged') : $t('student.unreachable')">
                         </div>
-                        <button class="btn btn-sm btn-info w-100" :disabled="joining" :data-e2e="`join-${server.servername}`"
+                        <button class="btn btn-sm btn-outline-secondary w-100" :disabled="joining" :data-e2e="`join-${server.servername}`"
                                 @click="registerClient(server.serverip, server.servername)">
-                            {{ $t('student.join') }}
+                            {{ $t('student.joinonly') }}
                         </button>
                     </div>
                     <div v-if="serverlist.length === 0" class="text-muted">{{ $t('student.nosessions') }}</div>
@@ -150,6 +157,7 @@ export default {
     },
 
     async mounted() {
+        this.username = localStorage.getItem('next-class-name') || ''
         await this.fetchInfo()
         this.fetchTimer = setInterval(() => this.fetchInfo(), FETCH_INTERVAL_MS)
     },
@@ -254,46 +262,69 @@ export default {
             return response?.message || this.$t('student.errors.NETWORK')
         },
 
-        async registerClient(serverip, servername) {
-            if (!this.username) return this.$swal.fire({ title: this.$t('general.error'), text: this.$t('student.nouser'), icon: 'error' })
-            if (!this.pincode) return this.$swal.fire({ title: this.$t('general.error'), text: this.$t('student.nopin'), icon: 'error' })
+        validateInput() {
+            if (!this.username) { this.$swal.fire({ title: this.$t('general.error'), text: this.$t('student.nouser'), icon: 'error' }); return false }
+            if (!this.pincode) { this.$swal.fire({ title: this.$t('general.error'), text: this.$t('student.nopin'), icon: 'error' }); return false }
+            return true
+        },
 
+        /** One register attempt incl. the "teacher app restarted" certificate question. */
+        async tryRegister(serverip, servername) {
+            const args = { clientname: this.username, servername, serverip, pin: String(this.pincode) }
+            let response = await window.ipcRenderer.invoke('register', args)
+            if (response?.status === 'fingerprint-changed') {
+                const confirm = await this.$swal.fire({
+                    title: this.$t('student.fingerprintChangeTitle'),
+                    text: this.$t('student.fingerprintChangeText'),
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: this.$t('student.fingerprintChangeConfirm'),
+                    cancelButtonText: this.$t('general.cancel'),
+                })
+                if (!confirm.isConfirmed) return { status: 'cancelled' }
+                const accepted = await window.ipcRenderer.invoke('accept-teacher-certificate', { serverip })
+                if (!accepted?.ok) return { status: 'error', code: 'CERT' }
+                response = await window.ipcRenderer.invoke('register', args)
+            }
+            return response
+        },
+
+        showJoinResult(response) {
+            if (response?.status === 'cancelled') return
+            if (response?.status === 'success') {
+                this.token = response.token
+                localStorage.setItem('next-class-name', this.username)
+                this.$swal.fire({ title: 'OK', text: response.reconnected ? this.$t('student.rejoined') : this.$t('student.joined'), icon: 'success', timer: 4000 })
+                this.fetchInfo()
+            } else {
+                this.$swal.fire({ title: this.$t('general.error'), text: this.errorText(response), icon: 'error' })
+            }
+        },
+
+        /** Join with name + PIN only: try every session found, the one whose PIN matches accepts. */
+        async joinByPin() {
+            if (!this.validateInput()) return
             this.joining = true
             try {
-                const args = { clientname: this.username, servername, serverip, pin: String(this.pincode) }
-                let response = await window.ipcRenderer.invoke('register', args)
-
-                // teacher app restarted -> new self-signed certificate; ask before trusting it
-                if (response?.status === 'fingerprint-changed') {
-                    const confirm = await this.$swal.fire({
-                        title: this.$t('student.fingerprintChangeTitle'),
-                        text: this.$t('student.fingerprintChangeText'),
-                        icon: 'warning',
-                        showCancelButton: true,
-                        confirmButtonText: this.$t('student.fingerprintChangeConfirm'),
-                        cancelButtonText: this.$t('general.cancel'),
-                    })
-                    if (!confirm.isConfirmed) return
-                    const accepted = await window.ipcRenderer.invoke('accept-teacher-certificate', { serverip })
-                    if (!accepted?.ok) {
-                        this.$swal.fire({ title: this.$t('general.error'), text: this.$t('student.errors.CERT'), icon: 'error' })
-                        return
-                    }
-                    response = await window.ipcRenderer.invoke('register', args)
+                let last = { status: 'error', code: 'WRONG_PIN' }
+                for (const server of this.serverlist) {
+                    if (!server.serverip) continue
+                    const response = await this.tryRegister(server.serverip, server.servername)
+                    if (response?.status === 'success' || response?.status === 'cancelled') { last = response; break }
+                    if (response?.code !== 'WRONG_PIN') last = response   // keep the most useful error
                 }
+                this.showJoinResult(last)
+            } finally {
+                this.joining = false
+            }
+        },
 
-                if (response?.status === 'success') {
-                    this.token = response.token
-                    this.$swal.fire({
-                        title: 'OK',
-                        text: response.reconnected ? this.$t('student.rejoined') : this.$t('student.joined'),
-                        icon: 'success',
-                        timer: 4000,
-                    })
-                    this.fetchInfo()
-                } else {
-                    this.$swal.fire({ title: this.$t('general.error'), text: this.errorText(response), icon: 'error' })
-                }
+        /** Join one specific session. */
+        async registerClient(serverip, servername) {
+            if (!this.validateInput()) return
+            this.joining = true
+            try {
+                this.showJoinResult(await this.tryRegister(serverip, servername))
             } finally {
                 this.joining = false
             }
