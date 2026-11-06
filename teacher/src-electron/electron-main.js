@@ -35,8 +35,8 @@ import IpcHandler from './main/scripts/ipchandler.js';
 const e2eServerApiPort = Number(process.env.NXE_E2E_SERVER_API_PORT);
 if (Number.isInteger(e2eServerApiPort)) config.serverApiPort = e2eServerApiPort;
 
-// Reject debugger switches before Chromium opens a CDP or Node inspector endpoint.
-if (!config.development && process.argv.some(arg => /^--(?:inspect(?:-brk)?|remote-debugging-(?:port|pipe))(?:=|$)/.test(arg))) {
+// Reject debugger switches in installed builds (dev mode via `quasar dev` always passes --inspect).
+if (app.isPackaged && !config.development && process.argv.some(arg => /^--(?:inspect(?:-brk)?|remote-debugging-(?:port|pipe))(?:=|$)/.test(arg))) {
     app.quit();
     process.exit(0);
 }
