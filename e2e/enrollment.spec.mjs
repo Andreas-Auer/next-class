@@ -111,6 +111,10 @@ test('course enrollment: first lesson automatic, then automatic rejoin and knock
       await expect(s1.locator('[data-e2e="connected-card"]')).toBeVisible({ timeout: 40_000 });   // no click
       await expect(card('Maria Musterschülerin').locator('[data-e2e="badge-online"]')).toBeVisible({ timeout: 20_000 });
       await expect(card('Maria Musterschülerin').locator('[data-e2e="badge-new"]')).toHaveCount(0);
+      // joined by itself = only connected; "Am Unterricht teilnehmen" makes her take part
+      await expect(card('Maria Musterschülerin').locator('[data-e2e="badge-notjoined"]')).toBeVisible({ timeout: 15_000 });
+      await s1.locator('[data-e2e="participate"]').click();
+      await expect(card('Maria Musterschülerin').locator('[data-e2e="badge-notjoined"]')).toHaveCount(0, { timeout: 15_000 });
     });
 
     await test.step('lesson 2: a new device knocks and the teacher lets it in', async () => {

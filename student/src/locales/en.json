@@ -82,7 +82,10 @@
     "namelocked": "Afterwards only a teacher can change your name.",
     "save": "Save",
     "knockpending": "Knocked at \"{course}\" – wait until the teacher lets you in.",
-    "knockdenied": "The teacher did not let you into \"{course}\"."
+    "knockdenied": "The teacher did not let you into \"{course}\".",
+    "livehint": "The lesson is live. Click \"Join the lesson\" to take part.",
+    "participate": "Join the lesson",
+    "released": "The teacher released you from \"{course}\"."
   },
   "general": {
     "ok": "OK",

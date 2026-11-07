@@ -13,5 +13,5 @@ export const sessionOps = {};
 /** Operations a co-teacher may call on the host. Everything else stays local. */
 export const REMOTE_OPS = new Set([
     'getSessionInfo', 'studentlist', 'sessionEvents', 'setServerStatus', 'kickStudent', 'setAppLock', 'setNetLock', 'teacherList',
-    'replicaState', 'syncCourse', 'knockList', 'decideKnock', 'renameStudent', 'removeCourseStudent',
+    'replicaState', 'syncCourse', 'knockList', 'decideKnock', 'renameStudent', 'removeCourseStudent', 'releaseStudent',
 ]);

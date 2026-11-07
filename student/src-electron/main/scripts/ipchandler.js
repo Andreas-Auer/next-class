@@ -166,6 +166,7 @@ class IpcHandler {
             pin, clientname, clientip, hostname,
             version: this.config.version,
             reconnectToken: this.multicastClient.reconnectToken || undefined,
+            participating: !!args.participate,   // joined with the PIN = takes part; joined by itself = only connected
             ...(StudentProfile.complete() ? StudentProfile.identity() : {}),   // device key + name: the course recognizes this device
         };
         try {
@@ -177,7 +178,7 @@ class IpcHandler {
             const data = await response.json();
             if (data?.code === 'KNOCK_PENDING' || data?.code === 'KNOCK_DENIED') {
                 // not enrolled in this course yet: the teacher has to let us in (we keep asking)
-                this.CommHandler.knocking = { servername, serverip, serverport: port, pin, courseName: data.courseName || servername };
+                this.CommHandler.knocking = { servername, serverip, serverport: port, pin, participate: !!args.participate, courseName: data.courseName || servername };
                 ci.knock = { state: data.code === 'KNOCK_PENDING' ? 'pending' : 'denied', course: data.courseName || servername };
                 return { status: 'error', code: data.code, message: data.message };
             }
@@ -187,7 +188,9 @@ class IpcHandler {
             this.CommHandler.knocking = null;
             ci.knock = null;
             if (data.course?.id) StudentProfile.rememberCourse({ ...data.course, pin, displayName: data.clientname });
-            Object.assign(ci, { courseId: data.course?.id || null, courseName: data.course?.name || null });
+            Object.assign(ci, { courseId: data.course?.id || null, courseName: data.course?.name || null, releasedFrom: null });
+            // a reconnect keeps taking part; a new join only if the student asked for it
+            ci.participating = !!data.participating || !!args.participate;
             Object.assign(ci, { name: data.clientname || clientname, serverip, serverport: port, servername, ip: clientip, hostname, token: data.token, pin, reconnecting: false });
             this.multicastClient.reconnectToken = data.token;
             this.multicastClient.beaconsLost = 0;
@@ -227,6 +230,12 @@ class IpcHandler {
         });
 
         ipcMain.handle('profile-get', () => StudentProfile.view());
+        /** "Am Unterricht teilnehmen": from now on the teacher's locks apply to this device. */
+        ipcMain.handle('participate', (event) => {
+            if (!this.fromMainWindow(event)) return { status: 'error' };
+            this.multicastClient.clientinfo.participating = true;
+            return { status: 'success' };
+        });
         ipcMain.handle('profile-set-name', (event, data) => (this.fromMainWindow(event) ? StudentProfile.setName(data || {}) : { status: 'error' }));
         /** Stop knocking (student gave up waiting). */
         ipcMain.handle('knock-cancel', () => { this.CommHandler.knocking = null; this.multicastClient.clientinfo.knock = null; return { status: 'success' }; });

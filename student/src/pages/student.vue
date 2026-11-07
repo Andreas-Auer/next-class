@@ -53,7 +53,11 @@
             <!-- connected -->
             <div v-if="token" class="card shadow-sm" style="max-width: 560px;" data-e2e="connected-card">
                 <div class="card-body">
-                    <h4 class="card-title">{{ clientinfo.servername }}</h4>
+                    <h4 class="card-title"><span style="color:#198754;">●</span> {{ clientinfo.courseName || clientinfo.servername }}</h4>
+                    <div v-if="!clientinfo.participating" class="alert mt-2" style="background:#d1e7dd; border-color:#198754;" data-e2e="not-participating">
+                        <div class="mb-2">{{ $t('student.livehint') }}</div>
+                        <button class="btn btn-success btn-lg w-100" data-e2e="participate" @click="participate">{{ $t('student.participate') }}</button>
+                    </div>
                     <p class="mb-1">{{ $t('student.connectedto', { name: clientinfo.servername }) }}</p>
                     <p class="mb-1 text-secondary">{{ clientinfo.name }} · {{ clientinfo.serverip }}</p>
                     <p v-if="clientinfo.screenshotinterval > 0" class="mb-1">
@@ -90,6 +94,9 @@
 
             <!-- not connected -->
             <template v-else>
+                <div v-if="clientinfo.releasedFrom" class="alert alert-success" style="max-width: 560px;" data-e2e="released">
+                    {{ $t('student.released', { course: clientinfo.releasedFrom }) }}
+                </div>
                 <div v-if="clientinfo.reconnecting" class="alert alert-warning d-flex align-items-center" style="max-width: 560px;" data-e2e="reconnecting">
                     <span class="spinner-border spinner-border-sm me-2"></span>
                     {{ $t('student.reconnecting', { name: clientinfo.reconnecting }) }}
@@ -267,6 +274,10 @@ export default {
         liveBeacon(c) {
             return this.serverlist.find((s) => s.courseId === c.id) || null
         },
+        async participate() {
+            await window.ipcRenderer.invoke('participate')
+            this.fetchInfo()
+        },
         async cancelKnock() {
             await window.ipcRenderer.invoke('knock-cancel')
             this.fetchInfo()
@@ -362,7 +373,7 @@ export default {
 
         /** One register attempt incl. the "teacher app restarted" certificate question. */
         async tryRegister(serverip, servername, serverport) {
-            const args = { clientname: this.username, servername, serverip, serverport, pin: String(this.pincode) }
+            const args = { clientname: this.username, servername, serverip, serverport, pin: String(this.pincode), participate: true }   // PIN typed = takes part
             let response = await window.ipcRenderer.invoke('register', args)
             if (response?.status === 'fingerprint-changed') {
                 const confirm = await this.$swal.fire({

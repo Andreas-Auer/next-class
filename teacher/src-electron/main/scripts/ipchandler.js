@@ -92,6 +92,8 @@ class IpcHandler {
             leftAt: student.leftAt || null,
             unchangedSince: student.unchangedSince ?? null,
             courseKey: student.courseKey || null,
+            participating: !!student.participating,
+            released: student.released || null,
         };
     }
 
@@ -309,7 +311,7 @@ class IpcHandler {
                 teacherCode: session.teacherCode,
                 serverstatus: session.serverstatus,
                 studentList: session.studentList.map((st) => ({
-                    clientname: st.clientname, courseKey: st.courseKey || null, hostname: st.hostname, clientip: st.clientip, token: st.token, version: st.version, joinedAt: st.joinedAt,
+                    clientname: st.clientname, courseKey: st.courseKey || null, participating: !!st.participating, released: st.released || null, hostname: st.hostname, clientip: st.clientip, token: st.token, version: st.version, joinedAt: st.joinedAt,
                 })),
                 coTeachers: (session.coTeachers || []).map(({ name, ip, apiPort, token, joinedAt }) => ({ name, ip, apiPort, token, joinedAt })),
                 events: (session.events || []).slice(0, 100),
@@ -376,6 +378,7 @@ class IpcHandler {
         session.teacherName = TeacherProfile.name() || t('coteacher.you');
         session.coTeachers = [];          // { name, token, ip, joinedAt, lastSeen }
         session.pendingJoins = new Map(); // requestId -> { name, ip, at, status: pending|approved|denied, token? }
+        session.readmitted = new Set();   // device key hashes let in again after an app restart
         session.knocks = new Map();       // device key hash -> { student, status: pending|denied, at } (new devices from lesson 2 on)
         session.lessonNumber = course ? (course.lessons || 0) + 1 : 0;
         session.serverstatus = { screenslocked: false, screenshotinterval: DEFAULT_SCREENSHOT_INTERVAL_S, idlethreshold: DEFAULT_IDLE_THRESHOLD_S };
@@ -427,13 +430,31 @@ class IpcHandler {
             const session = this.session(servername);
             return session ? this.addTeacher(session, teacher) : null;
         };
+        /**
+         * Release a student: mode 'temporary' (locks lifted, stays in the lesson), 'permanent' (leaves the
+         * lesson; coming back during the lesson needs no knocking) or 'back' (locks apply again).
+         */
+        this.op('releaseStudent', (_e, { servername, clientname, mode } = {}) => {
+            const session = this.session(servername);
+            const student = session?.studentList.find((x) => x.clientname === clientname);
+            if (!student) return { status: 'error' };
+            if (mode === 'permanent') {
+                student.status.released = true;
+                if (student.courseKey) session.readmitted.add(student.courseKey);
+            } else {
+                student.released = mode === 'temporary' ? 'temporary' : null;
+            }
+            addEvent(session, student.clientname, mode === 'back' ? 'release-back' : 'released');
+            return { status: 'success' };
+        });
+
         /** Devices knocking at this course lesson (not enrolled yet). */
         this.op('knockList', (_e, servername) => {
             const session = this.session(servername);
             if (!session?.knocks) return [];
             const now = Date.now();
             return [...session.knocks.values()].filter((k) => k.status === 'pending' && now - k.at < 30_000)   // still asking
-                .map((k) => ({ key: k.student.key, name: k.student.name, className: k.student.className, at: k.at }));
+                .map((k) => ({ key: k.student.key, name: k.student.name, className: k.student.className, at: k.at, restart: !!k.restart }));
         });
         /** Let a knocking device in (enrolled in the course from now on) or refuse it for this lesson. */
         this.op('decideKnock', (_e, { servername, key, approve } = {}) => {
@@ -441,6 +462,11 @@ class IpcHandler {
             const knock = session?.knocks?.get(key);
             const course = session?.courseId && CourseStore.get(session.courseId);
             if (!knock || !course) return { status: 'error' };
+            if (approve && knock.restart) {   // enrolled student whose app was restarted: let in again
+                session.readmitted.add(key);
+                session.knocks.delete(key);
+                return { status: 'success' };
+            }
             if (approve) {
                 const taken = (course.students || []).filter((x) => !x.removed).map((x) => x.name);
                 const student = { ...knock.student, name: uniqueName(knock.student, taken), enrolledLesson: session.lessonNumber || course.lessons };
@@ -560,6 +586,7 @@ class IpcHandler {
         session.teacherName = TeacherProfile.name() || t('coteacher.you');
         session.pendingJoins = new Map();
         session.knocks = new Map();
+        session.readmitted = new Set();
         session.lessonNumber = replica.lessonNumber || 0;
         session.events = replica.events || [];
         this.config.examServerList[replica.servername] = session;

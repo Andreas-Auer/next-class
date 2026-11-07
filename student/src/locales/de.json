@@ -82,7 +82,10 @@
     "namelocked": "Danach kann nur noch eine Lehrkraft deinen Namen ändern.",
     "save": "Speichern",
     "knockpending": "Angeklopft bei „{course}“ – warte, bis dich die Lehrkraft einlässt.",
-    "knockdenied": "Die Lehrkraft hat dich bei „{course}“ nicht eingelassen."
+    "knockdenied": "Die Lehrkraft hat dich bei „{course}“ nicht eingelassen.",
+    "livehint": "Der Unterricht ist live. Mit „Am Unterricht teilnehmen“ bist du dabei.",
+    "participate": "Am Unterricht teilnehmen",
+    "released": "Du wurdest von der Lehrkraft aus „{course}“ freigegeben."
   },
   "general": {
     "ok": "OK",

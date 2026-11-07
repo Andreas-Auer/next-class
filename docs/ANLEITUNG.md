@@ -60,6 +60,21 @@ Findet die Schüler-App die Unterrichtseinheit nicht (manche WLANs blockieren di
    - **Ereignisse** – wer ist beigetreten, getrennt, hat die App beendet, ein gesperrtes Programm gestartet …
 4. **Unterrichtseinheit beenden** gibt alle Geräte frei.
 
+### Ablauf einer Stunde
+
+1. **Unterricht starten** (Kurs-Kachel). Eingeschriebene Geräte verbinden sich von selbst und stehen als
+   **„online – nicht beigetreten“** (orange) da, bis die Schülerin oder der Schüler **„Am Unterricht teilnehmen“** klickt.
+   Wer mit der PIN beitritt, nimmt automatisch teil.
+2. **Unterricht starten – Computer sperren** (roter Knopf oben): Nach **10 Sekunden** Vorwarnung zum Speichern sind
+   Internet (Schulnetz und Ausnahmen bleiben erreichbar) und nicht erlaubte Programme (Vorlage des Kurses) gesperrt –
+   bis zum Ende der Stunde. Nicht erlaubte Programme werden erst höflich geschlossen, nach weiteren 10 s hart beendet.
+   Gesperrt werden nur Geräte, die teilnehmen. **Computer freigeben** hebt die Sperre für alle auf.
+3. **🔓 auf einer Kachel:** *Vorübergehend freigeben* (bleibt in der Stunde, „Wieder sperren“ jederzeit) oder
+   *Für diese Stunde freigeben* (verlässt die Stunde; kommt sie oder er zurück, ist kein Anklopfen nötig).
+4. **Alarm (rot, mit Ton):** wenn ein teilnehmendes Gerät Next-Class beendet, die Verbindung ~10 s verliert oder nur noch
+   die Internetsperre aktiv ist. Startet jemand Next-Class neu, muss er **anklopfen** und wird erst nach **Einlassen**
+   wieder verbunden. Bleibt die App offen (z. B. kurzer WLAN-Aussetzer), geht es von selbst weiter.
+
 ### Kurse (wiederkehrender Unterricht)
 
 - Im Dashboard eines Kurses stehen alle eingeschriebenen Schülerinnen und Schüler; wer fehlt, steht grau als „offline“ da.

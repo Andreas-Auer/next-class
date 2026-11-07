@@ -147,7 +147,10 @@
       "teacher-joined": "ist als Lehrkraft beigetreten",
       "host-failover": "hat die Unterrichtseinheit übernommen (andere Lehrer-App ausgefallen)",
       "knock": "klopft an",
-      "enrolled": "wurde in den Kurs eingeschrieben"
+      "enrolled": "wurde in den Kurs eingeschrieben",
+      "released": "wurde freigegeben",
+      "release-back": "wird wieder gesperrt",
+      "knock-restart": "klopft nach Neustart an"
     }
   },
   "coteacher": {
@@ -243,5 +246,26 @@
     "removestudentconfirm": "{name} aus dem Kurs entfernen? Das Gerät tritt dem Kurs danach nicht mehr bei.",
     "knocks": "klopft an und möchte am Kurs teilnehmen",
     "admit": "Einlassen"
+  },
+  "lesson": {
+    "lock": "Unterricht starten – Computer sperren",
+    "unlock": "Computer freigeben",
+    "lockgo": "Sperren",
+    "lockconfirm": "Alle teilnehmenden Computer bekommen {s} Sekunden Vorwarnung zum Speichern, dann sind Internet (Schulnetz bleibt erreichbar) und nicht erlaubte Programme gesperrt – bis {time}.",
+    "lockprograms": "Erlaubte Programme: {n}",
+    "locknoprograms": "Keine Programm-Vorlage gewählt: nur das Internet wird gesperrt.",
+    "notjoined": "online – nicht beigetreten",
+    "releasedtemp": "freigegeben",
+    "release": "Freigeben",
+    "releasetext": "{name} freigeben?",
+    "releasetemp": "Vorübergehend freigeben",
+    "releaseback": "Wieder sperren",
+    "releaseperm": "Für diese Stunde freigeben",
+    "knockrestart": "hat Next-Class neu gestartet und klopft an",
+    "alarm": {
+      "quit": "hat Next-Class beendet!",
+      "offline": "Verbindung verloren!",
+      "firewall-only": "nur noch die Internetsperre aktiv – App nicht erreichbar!"
+    }
   }
 }

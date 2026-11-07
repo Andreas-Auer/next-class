@@ -12,6 +12,9 @@
     <div class="w-100 p-3 text-white bg-dark d-flex align-items-center flex-shrink-0" style="height: 63px;">
         <img src="/src/assets/img/svg/shield-lock-fill.svg" class="white me-2" width="32" height="32">
         <span class="me-auto" style="font-size: 23px;">Next-Class</span>
+        <button class="btn btn-sm me-3 fw-semibold" :class="lessonLocked ? 'btn-outline-light' : 'btn-danger'" data-e2e="lesson-lock" @click="toggleLessonLock">
+            {{ lessonLocked ? $t('lesson.unlock') : $t('lesson.lock') }}
+        </button>
         <button class="btn btn-outline-light btn-sm me-2" data-e2e="events-open" @click="openEvents">
             {{ $t('events.title') }} <span v-if="events.length" class="badge bg-secondary ms-1">{{ events.length }}</span>
         </button>
@@ -133,14 +136,18 @@
                 <p>{{ $t('dashboard.nostudentshint', { pin }) }}</p>
             </div>
             <div class="d-flex flex-wrap gap-3">
+                <!-- alarm: a participating student quit the app or lost the connection -->
+                <div v-for="a in alarms" :key="'alarm-' + a.student.clientname" class="w-100 alert alert-danger d-flex align-items-center mb-0 py-2" :data-e2e="`alarm-${a.student.clientname}`">
+                    <strong class="me-2">⚠ {{ a.student.clientname }}</strong><span class="me-auto">{{ $t(`lesson.alarm.${a.reason}`) }}</span>
+                </div>
                 <!-- devices knocking at a course lesson (new from the second lesson on) -->
                 <div v-for="k in knocks" :key="k.key" class="w-100 alert d-flex align-items-center mb-0 py-2" style="background:#fff3cd; border-color:#fd7e14;" :data-e2e="`knock-${k.name}`">
-                    <strong class="me-2">🚪 {{ k.name }}</strong><span class="me-auto">{{ k.className }} · {{ $t('course.knocks') }}</span>
+                    <strong class="me-2">🚪 {{ k.name }}</strong><span class="me-auto">{{ k.className }} · {{ k.restart ? $t('lesson.knockrestart') : $t('course.knocks') }}</span>
                     <button class="btn btn-sm btn-success me-2" :data-e2e="`knock-admit-${k.name}`" @click="decideKnock(k, true)">{{ $t('course.admit') }}</button>
                     <button class="btn btn-sm btn-outline-danger" @click="decideKnock(k, false)">{{ $t('coteacher.deny') }}</button>
                 </div>
                 <div v-for="student in sortedStudents" :key="student.courseKey || student.clientname" class="studentwidget card shadow-sm"
-                     :class="{ offline: !student.online, idle: idleSeconds(student) !== null }" :data-e2e="`student-${student.clientname}`">
+                     :class="{ offline: !student.online, idle: idleSeconds(student) !== null, alarm: !!alarmFor(student) }" :data-e2e="`student-${student.clientname}`">
                     <div class="thumb" @click="showLarge(student)">
                         <img v-if="student.imageurl && student.online" :src="student.imageurl" class="w-100 h-100" style="object-fit: contain;">
                         <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center text-secondary small">
@@ -151,10 +158,13 @@
                         <div class="d-flex align-items-center">
                             <strong class="text-truncate me-auto" :title="`${student.clientname} (${student.hostname})`">{{ student.clientname }}</strong>
                             <button v-if="student.courseKey" class="btn btn-sm btn-link p-0 ms-2" :title="$t('course.rename')" data-e2e="rename" @click="rename(student)">✎</button>
+                            <button v-if="!student.absent && student.participating" class="btn btn-sm btn-link p-0 ms-2" :title="$t('lesson.release')" :data-e2e="`release-${student.clientname}`" @click="release(student)">🔓</button>
                             <button v-if="!student.absent" class="btn btn-sm btn-link p-0 ms-2" :title="$t('applock.runningapps')" data-e2e="running-apps" @click="runningAppsOf = student.clientname">☰</button>
                             <button class="btn btn-sm btn-link text-danger p-0 ms-2" :title="student.courseKey ? $t('course.removestudent') : $t('dashboard.kick')" @click="student.courseKey ? removeFromCourse(student) : kick(student)">✕</button>
                         </div>
                         <div class="d-flex flex-wrap gap-1 mt-1">
+                            <span v-if="student.online && !student.participating && !student.absent" class="badge" style="background:#fd7e14;" data-e2e="badge-notjoined">{{ $t('lesson.notjoined') }}</span>
+                            <span v-if="student.released === 'temporary'" class="badge bg-success" data-e2e="badge-released">{{ $t('lesson.releasedtemp') }}</span>
                             <span v-if="student.isNew" class="badge" style="background:#fd7e14;" data-e2e="badge-new" :title="$t('course.newhint')">{{ $t('course.newbadge') }}</span>
                             <span v-if="student.className" class="badge bg-light text-dark border">{{ student.className }}</span>
                             <span v-if="student.absent" class="badge bg-secondary" data-e2e="badge-absent">{{ $t('dashboard.offline') }}</span>
@@ -229,6 +239,7 @@
 
 <script>
 import AppPicker from '../components/AppPicker.vue'
+import { alarmFor, LESSON_GRACE_SECONDS } from 'next-class-shared/lessonRules.js'
 const POLL_MS = 2000
 const VIOLATION_SHOW_MS = 5 * 60 * 1000   // a violation badge stays visible for 5 minutes
 
@@ -264,6 +275,7 @@ export default {
             teacherCode: '',
             course: null,
             knocks: [],
+            alarmed: new Set(),
             teachers: [],
             joinDialogOpen: false,
             lastPolicyId: null,
@@ -272,6 +284,10 @@ export default {
         }
     },
     computed: {
+        lessonLocked() { return !!(this.applock.active || this.netlock.active) },
+        alarms() {
+            return this.students.map((st) => ({ student: st, reason: this.alarmFor(st) })).filter((a) => a.reason)
+        },
         onlineCount() { return this.students.filter((s) => s.online).length },
         netExceptionList() {
             return this.netExceptionsText.split(/[\n,;]+/).map((e) => e.trim()).filter(Boolean)
@@ -551,6 +567,7 @@ export default {
             const result = await this.api('studentlist', this.servername)
             if (result?.status !== 'success') return
             this.students = result.studentlist.sort((a, b) => a.clientname.localeCompare(b.clientname))
+            this.checkAlarms()
         },
         async setStatus(patch) {
             const result = await this.api('setServerStatus', { servername: this.servername, ...patch })
@@ -565,6 +582,74 @@ export default {
         },
         saveScreenshotInterval() {
             this.setStatus({ screenshotinterval: this.screenshotinterval })
+        },
+        alarmFor(student) {
+            return alarmFor(student, this.now)
+        },
+        /** Short alarm tone (no sound file needed). */
+        beep() {
+            try {
+                const ctx = new AudioContext()
+                for (const [i, f] of [880, 660, 880].entries()) {
+                    const o = ctx.createOscillator(), g = ctx.createGain()
+                    o.frequency.value = f
+                    o.connect(g); g.connect(ctx.destination)
+                    g.gain.setValueAtTime(0.25, ctx.currentTime + i * 0.25)
+                    o.start(ctx.currentTime + i * 0.25); o.stop(ctx.currentTime + i * 0.25 + 0.2)
+                }
+                setTimeout(() => ctx.close(), 1200)
+            } catch { /* no audio device */ }
+        },
+        /** New alarms ring once; an alarm that ended can ring again later. */
+        checkAlarms() {
+            const current = new Set(this.alarms.map((a) => `${a.student.clientname}:${a.reason}`))
+            if ([...current].some((k) => !this.alarmed.has(k))) this.beep()
+            this.alarmed = current
+        },
+        /** "Unterricht starten – Computer sperren": internet + programs (course template) for all taking part. */
+        async toggleLessonLock() {
+            if (this.lessonLocked) {
+                if (this.applock.active) await this.sendAppLock(false)
+                if (this.netlock.active) {
+                    const r = await this.api('setNetLock', { servername: this.servername, active: false })
+                    if (r?.status === 'success') this.netlock = r.netlock
+                }
+                return
+            }
+            const until = this.validatedUntil()
+            if (!until) return
+            const tplName = this.applockData.templates.find((t) => t.id === this.selectedTemplateId)?.name || ''
+            const esc = (v) => String(v).replace(/[&<>"]/g, '')
+            const confirm = await this.$swal.fire({
+                title: this.$t('lesson.lock'),
+                html: this.$t('lesson.lockconfirm', { s: LESSON_GRACE_SECONDS, time: this.formatTime(until) })
+                    + (this.allowedIds.length ? `<br><br>${this.$t('lesson.lockprograms', { n: this.allowedIds.length })}${tplName ? ` <b>${esc(tplName)}</b>` : ''}` : `<br><br>${this.$t('lesson.locknoprograms')}`),
+                icon: 'warning', showCancelButton: true,
+                confirmButtonText: this.$t('lesson.lockgo'), cancelButtonText: this.$t('general.cancel'),
+            })
+            if (!confirm.isConfirmed) return
+            const r = await this.api('setNetLock', { servername: this.servername, active: true, until, extraAllow: [...this.netExceptionList] })
+            if (r?.status === 'success') this.netlock = r.netlock
+            if (this.allowedIds.length) {
+                this.applockMode = 'kill'
+                const a = await this.api('setAppLock', {
+                    servername: this.servername, active: true, mode: 'kill', allowedIds: [...this.allowedIds], templateName: tplName, until, graceSeconds: LESSON_GRACE_SECONDS,
+                    customEntries: JSON.parse(JSON.stringify(this.applockData.customEntries.filter((e) => this.allowedIds.includes(e.id)))),
+                })
+                if (a?.status === 'success') this.applock = a.applock
+            }
+        },
+        async release(student) {
+            const r = await this.$swal.fire({
+                title: this.$t('lesson.release'), text: this.$t('lesson.releasetext', { name: student.clientname }),
+                showDenyButton: true, showCancelButton: true,
+                confirmButtonText: student.released === 'temporary' ? this.$t('lesson.releaseback') : this.$t('lesson.releasetemp'),
+                denyButtonText: this.$t('lesson.releaseperm'), cancelButtonText: this.$t('general.cancel'),
+            })
+            if (r.isDismissed) return
+            const mode = r.isDenied ? 'permanent' : (student.released === 'temporary' ? 'back' : 'temporary')
+            await this.api('releaseStudent', { servername: this.servername, clientname: student.clientname, mode })
+            this.fetchStudents()
         },
         async decideKnock(k, approve) {
             await this.api('decideKnock', { servername: this.servername, key: k.key, approve })
@@ -645,6 +730,7 @@ export default {
 .studentwidget { width: 260px; }
 .studentwidget.offline { opacity: 0.6; }
 .studentwidget.idle { outline: 3px solid #fd7e14; }
+.studentwidget.alarm { outline: 3px solid #dc3545; opacity: 1; }
 .lockbox { border: 1px solid #495057; border-radius: 4px; }
 .lockbox.active { border-color: #ffc107; }
 .nc-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 1050; display: flex; align-items: center; justify-content: center; }

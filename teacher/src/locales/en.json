@@ -147,7 +147,10 @@
       "teacher-joined": "joined as teacher",
       "host-failover": "took over the session (other teacher app failed)",
       "knock": "is knocking",
-      "enrolled": "was enrolled in the course"
+      "enrolled": "was enrolled in the course",
+      "released": "was released",
+      "release-back": "is locked again",
+      "knock-restart": "knocks after a restart"
     }
   },
   "coteacher": {
@@ -243,5 +246,26 @@
     "removestudentconfirm": "Remove {name} from the course?",
     "knocks": "is knocking and wants to join the course",
     "admit": "Let in"
+  },
+  "lesson": {
+    "lock": "Start lesson – lock computers",
+    "unlock": "Unlock computers",
+    "lockgo": "Lock",
+    "lockconfirm": "All participating computers get {s} seconds to save, then the internet (school network stays reachable) and programs not allowed are locked – until {time}.",
+    "lockprograms": "Programs allowed: {n}",
+    "locknoprograms": "No program template chosen: only the internet is locked.",
+    "notjoined": "online – not joined",
+    "releasedtemp": "released",
+    "release": "Release",
+    "releasetext": "Release {name}?",
+    "releasetemp": "Release for now",
+    "releaseback": "Lock again",
+    "releaseperm": "Release for this lesson",
+    "knockrestart": "restarted Next-Class and is knocking",
+    "alarm": {
+      "quit": "quit Next-Class!",
+      "offline": "lost the connection!",
+      "firewall-only": "only the internet lock is left – app not reachable!"
+    }
   }
 }

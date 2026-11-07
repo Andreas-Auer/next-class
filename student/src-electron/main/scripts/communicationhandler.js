@@ -284,6 +284,16 @@ class CommHandler {
         const ci = this.multicastClient.clientinfo;
         this.multicastClient.serverstatus = serverstatus;
 
+        if (studentstatus.released) {   // teacher released this student for the rest of the lesson
+            log.info('communicationhandler @ processUpdate: released by the teacher');
+            NetLock.lift('released', this.lockOwner());
+            AppLock.lift('released', this.lockOwner());
+            ci.releasedFrom = ci.courseName || ci.servername;
+            this.skipCurrentLesson();
+            this.forgetSession();
+            this.resetConnection();
+            return;
+        }
         if (studentstatus.kicked) {
             log.warn('communicationhandler @ processUpdate: removed from the session by the teacher');
             NetLock.lift('removed', this.lockOwner());

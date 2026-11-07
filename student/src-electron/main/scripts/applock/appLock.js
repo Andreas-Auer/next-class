@@ -32,7 +32,7 @@ import { classify } from '../../../../../shared/appCatalog.js';
 import { listRunningApps, closeApp, allowlistSupported, stopWatchers } from './processList.js';
 
 const TICK_MS = 2000;
-const FORCE_AFTER_MS = 5000;           // polite close first, hard kill after this
+const FORCE_AFTER_MS = 10000;          // polite close first, hard kill after this (decision 2026-11-07: 10 s)
 const REPORT_REPEAT_MS = 60000;        // the same program is reported at most once a minute
 const RUNNING_APPS_REFRESH_MS = 15000; // list of running programs for the teacher ("übernehmen")
 const MAX_VIOLATIONS = 20;

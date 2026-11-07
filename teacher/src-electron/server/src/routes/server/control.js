@@ -30,6 +30,7 @@ import { normalizeStudentClientName } from '../../../../../../shared/normalizeSt
 import { decryptSessionPayload } from '../../../../../../shared/apiSecret.js';
 import { pinBlocked, recordPinFail } from '../../../../../../shared/pinGuard.js';
 import { decideJoin } from '../../../../../../shared/enrollment.js';
+import { effectiveStatus } from '../../../../../../shared/lessonRules.js';
 import CourseStore from '../../../../main/scripts/courseStore.js';
 
 const router = Router();
@@ -156,11 +157,26 @@ router.post('/registerclient/:servername', async (req, res) => {
         ? session.studentList.find((s) => s.courseKey === courseStudent.key)
         : session.studentList.find((s) => s.clientname === clientname);
 
+    // the app was restarted during the lesson (no token of the last registration): knock again
+    if (courseStudent && existing?.participating && reconnectToken !== existing.token && !session.readmitted?.has(courseStudent.key)) {
+        const knock = session.knocks.get(courseStudent.key);
+        if (knock?.status === 'denied') return res.send({ sender: 'server', code: 'KNOCK_DENIED', courseName: session.serverinfo.courseName, status: 'error' });
+        if (!knock) {
+            session.knocks.set(courseStudent.key, { student: courseStudent, status: 'pending', at: now, ip: clientip, restart: true });
+            addEvent(session, courseStudent.name, 'knock-restart');
+        } else {
+            knock.at = now;
+        }
+        return res.send({ sender: 'server', code: 'KNOCK_PENDING', courseName: session.serverinfo.courseName, status: 'error' });
+    }
+    if (courseStudent) session.readmitted?.delete(courseStudent.key);
+
     if (!existing) {
         const token = `csrf-${crypto.randomUUID()}`;
         session.studentList.push({
             clientname: name,
             courseKey: courseStudent?.key || null,
+            participating: !!payload.participating,
             hostname,
             clientip,
             token,
@@ -173,7 +189,7 @@ router.post('/registerclient/:servername', async (req, res) => {
         });
         addEvent(session, name, 'joined');
         log.info(`control @ registerclient: "${name}" joined "${session.serverinfo.servername}"`);
-        return res.send({ sender: 'server', message: t('control.registered'), status: 'success', token, clientname: name, course: courseInfo });
+        return res.send({ sender: 'server', message: t('control.registered'), status: 'success', token, clientname: name, course: courseInfo, participating: !!payload.participating });
     }
 
     // name already in the list: only the same device may take it over again (it proves this with its old token)
@@ -188,9 +204,11 @@ router.post('/registerclient/:servername', async (req, res) => {
     existing.quitAt = null;
     existing.leftAt = null;
     existing.clientname = name;
+    existing.participating = existing.participating || !!payload.participating;
+    if (existing.released === 'permanent') existing.released = null;   // came back during the lesson: no knocking
     addEvent(session, name, 'reconnected');
     log.info(`control @ registerclient: "${name}" reconnected`);
-    return res.send({ sender: 'server', message: t('control.reconnected'), status: 'success', token: existing.token, reconnected: true, clientname: name, course: courseInfo });
+    return res.send({ sender: 'server', message: t('control.reconnected'), status: 'success', token: existing.token, reconnected: true, clientname: name, course: courseInfo, participating: existing.participating });
 });
 
 // ---- token routes ----------------------------------------------------------
@@ -233,6 +251,7 @@ router.post('/update', (req, res) => {
     if (typeof ci.platform === 'string') student.platform = ci.platform;
     if (ci.applock && typeof ci.applock === 'object') student.applock = ci.applock;
     if (ci.netlock && typeof ci.netlock === 'object') student.netlock = ci.netlock;
+    student.participating = !!ci.participating;
     // inactivity: student sends a duration (not a timestamp) so clock differences between devices do not matter
     student.unchangedSince = Number.isFinite(ci.screenUnchangedSeconds) ? student.timestamp - ci.screenUnchangedSeconds * 1000 : null;
     if (!ci.screenshotinterval) student.imageurl = false;
@@ -248,6 +267,10 @@ router.post('/update', (req, res) => {
     }
 
     const studentstatus = { ...student.status };
+    if (student.status.released) {   // released for the rest of the lesson: the tile goes away
+        addEvent(session, student.clientname, 'released');
+        session.studentList = session.studentList.filter((s) => s !== student);
+    }
     if (student.status.kicked) {
         addEvent(session, student.clientname, 'kicked');
         session.studentList = session.studentList.filter((s) => s !== student);
@@ -260,12 +283,11 @@ router.post('/update', (req, res) => {
         status: 'success',
         serverstatus: {
             sessionId: session.serverinfo.id,   // stays the same after a host failover
-            screenslocked: !!session.serverstatus.screenslocked,
             idlethreshold: session.serverstatus.idlethreshold,
-            applock: session.serverstatus.applock || { active: false },
+            // locks apply only to students taking part and not released
+            ...effectiveStatus(session.serverstatus, student),
             // other teacher apps of this session: the student reconnects there if this host fails
             teachers: (session.coTeachers || []).filter((c) => c.ip && Date.now() - c.lastSeen < 30000).map((c) => ({ ip: c.ip, port: c.apiPort })),
-            netlock: session.serverstatus.netlock || { active: false },
             screenshotinterval: session.serverstatus.screenshotinterval,
         },
         studentstatus,
