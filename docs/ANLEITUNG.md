@@ -75,6 +75,22 @@ Findet die Schüler-App die Unterrichtseinheit nicht (manche WLANs blockieren di
    die Internetsperre aktiv ist. Startet jemand Next-Class neu, muss er **anklopfen** und wird erst nach **Einlassen**
    wieder verbunden. Bleibt die App offen (z. B. kurzer WLAN-Aussetzer), geht es von selbst weiter.
 
+### Aufgaben, Abgaben und Material
+
+- **📝 Aufgaben → + Aufgabe:** Titel (z. B. „Grundriss EG“), Beschreibung, optional *Abgabe bis* und Größenlimit
+  (Standard 1 GB). Unter **Dateien hinzufügen …** Material anhängen (Angabe als PDF, Vorlagen).
+- Darunter steht, **wohin die Abgaben gespeichert werden** – Standard `Dokumente/Next-Class Abgaben`, pro Kurs in den
+  Kurseinstellungen oder direkt hier änderbar (z. B. Netzlaufwerk, OneDrive).
+- Die Schülerinnen und Schüler sehen die Aufgabe sofort, laden das Material herunter
+  (landet in `Downloads/Next-Class/<Aufgabe>/`) und geben mit **Dateien abgeben** ab (oder ziehen Dateien auf die Aufgabe).
+  Sie sehen danach „Abgabe erhalten 10:42 – 3 Datei(en)“; jede Datei wird auf Vollständigkeit geprüft.
+- Ablage: `20261123_BP-KU_Grundriss/Musterschülerin Maria/Grundriss.pln`. Nichts wird überschrieben – eine zweite
+  Abgabe derselben Datei heißt `Grundriss (2).pln`. Zwei Aufgaben mit gleichem ersten Wort am selben Tag: `…_Grundriss-2`.
+- **Teamteaching:** Jede Lehrkraft bekommt alle Abgaben in **ihren eigenen** Ordner (die Lehrer-Apps kopieren sie
+  im Hintergrund). Im Aufgabenfenster steht „bei dir gespeichert: 3 von 3 Dateien“.
+- Übersicht: grün = abgegeben, orange = zu spät, grau = noch nicht. **Ordner öffnen** springt zu den Dateien.
+- Das funktioniert im Schulnetz, also auch bei gesperrtem Internet.
+
 ### Sitzplan
 
 - Im Dashboard eines Kurses oben **Sitzplan** wählen (statt **Kacheln**).
@@ -127,7 +143,9 @@ macOS `sudo /Library/PrivilegedHelperTools/at.nextclass.helper uninstall`.
 
 - Live-Bilder werden nur im Arbeitsspeicher der Lehrer-App gehalten und **nie gespeichert**.
 - Das Ereignisprotokoll gilt nur für die laufende Unterrichtseinheit und wird nicht gespeichert.
-- Gespeichert werden nur die Vorlagen und Ausnahmen der Lehrkraft (auf ihrem eigenen Gerät).
+- Gespeichert werden nur die Vorlagen und Ausnahmen der Lehrkraft, ihre Kurse (Namen, Klasse und ein Prüfwert des
+  Geräteschlüssels der eingeschriebenen Schülerinnen und Schüler, Sitzplan) und die Abgaben im gewählten Ordner –
+  alles auf den Geräten der Lehrkräfte des Kurses. Material wird nach der Stunde gelöscht.
 
 ## Grenzen
 

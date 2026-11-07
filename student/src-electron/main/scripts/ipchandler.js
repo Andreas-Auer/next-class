@@ -20,13 +20,14 @@ import os, { networkInterfaces } from 'os';
 import tls from 'node:tls';
 import { createHash } from 'node:crypto';
 import ip from 'ip';
-import { ipcMain, app } from 'electron';
+import { ipcMain, app, dialog } from 'electron';
 import log from 'electron-log';
 import i18n from '../../../src/locales/locales.js';
 import { gateway4sync } from '../../../../shared/defaultGateway.js';
 import { normalizeStudentClientName } from '../../../../shared/normalizeStudentClientName.js';
 import { encryptSessionPayload } from '../../../../shared/apiSecret.js';
 import StudentProfile from './studentProfile.js';
+import { submitFiles, downloadMaterial } from './submitter.js';
 import { updateSystemTray } from './traymenu.js';
 import { syncClientDisplayInfo } from './displayInfo.js';
 import { examApiFetch } from './examApiFetch.js';
@@ -230,6 +231,46 @@ class IpcHandler {
         });
 
         ipcMain.handle('profile-get', () => StudentProfile.view());
+
+        /** Download material of a task to Downloads/Next-Class/<task folder>/. */
+        ipcMain.handle('download-material', async (event, { taskId, materialId } = {}) => {
+            if (!this.fromMainWindow(event)) return { status: 'error' };
+            const ci = this.multicastClient.clientinfo;
+            const task = (ci.tasks || []).find((t) => t.id === taskId);
+            const material = task?.materials?.find((m) => m.id === materialId);
+            if (!ci.token || !material) return { status: 'error' };
+            try {
+                const url = this.CommHandler.teacherUrl(`material/${encodeURIComponent(ci.servername)}/${encodeURIComponent(taskId)}/${encodeURIComponent(materialId)}`);
+                const downloads = process.env.NEXT_CLASS_DOWNLOADS_DIR || app.getPath('downloads');
+                const target = await downloadMaterial(url, this.CommHandler.authHeaders(), downloads, task, material);
+                return { status: 'success', path: target };
+            } catch (e) {
+                log.warn(`ipchandler @ download-material: ${e.message}`);
+                return { status: 'error' };
+            }
+        });
+
+        /**
+         * Hand in files for a task: { taskId, paths? } - without paths a file dialog opens.
+         * Progress is sent to the window as "submit-progress".
+         */
+        ipcMain.handle('submit-files', async (event, { taskId, paths } = {}) => {
+            if (!this.fromMainWindow(event)) return { status: 'error' };
+            const ci = this.multicastClient.clientinfo;
+            if (!ci.token || !ci.serverip) return { status: 'error', code: 'NOT_CONNECTED' };
+            let files = Array.isArray(paths) ? paths.filter((p) => typeof p === 'string') : null;
+            if (!files) {
+                const r = await dialog.showOpenDialog(this.WindowHandler.mainwindow, { properties: ['openFile', 'multiSelections'] });
+                if (r.canceled) return { status: 'cancelled' };
+                files = r.filePaths;
+            }
+            if (!files.length) return { status: 'cancelled' };
+            const url = this.CommHandler.teacherUrl(`submit/${encodeURIComponent(ci.servername)}/${encodeURIComponent(taskId)}`);
+            const result = await submitFiles(url, this.CommHandler.authHeaders(), files.slice(0, 50),
+                (state) => this.WindowHandler.mainwindow?.webContents.send('submit-progress', { taskId, ...state }));
+            this.CommHandler.requestUpdate();   // show the confirmation from the teacher app right away
+            return result;
+        });
         /** "Am Unterricht teilnehmen": from now on the teacher's locks apply to this device. */
         ipcMain.handle('participate', (event) => {
             if (!this.fromMainWindow(event)) return { status: 'error' };

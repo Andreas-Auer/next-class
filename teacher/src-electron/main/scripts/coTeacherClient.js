@@ -20,6 +20,11 @@
  */
 
 import https from 'https';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import Submissions from './submissions.js';
+import Materials from './materials.js';
 import { ipcMain } from 'electron';
 import log from 'electron-log';
 import { buildAppSecretHeaders, encryptSessionPayload } from '../../../../shared/apiSecret.js';
@@ -54,6 +59,7 @@ class CoTeacherClient {
             if (r?.status === 'success' && r.result) {
                 this.replica = r.result;
                 if (r.result.course) await this.hooks.syncCourse?.(r.result.course, (own) => this.pushCourse(own));
+                this.syncFiles(r.result);   // copies of submissions and material (in the background)
             }
         } catch { /* host unreachable - handled by the failover check */ }
     }
@@ -97,6 +103,77 @@ class CoTeacherClient {
         } finally {
             this.failoverBusy = false;
         }
+    }
+
+    /**
+     * Every teacher of the lesson gets the submissions in their own folder: download what is missing.
+     * Material is copied as well, so that a takeover keeps it.
+     */
+    async syncFiles(replica) {
+        if (this.syncBusy || !this.remote) return;
+        this.syncBusy = true;
+        const remote = this.remote;
+        try {
+            for (const task of replica.tasks || []) {
+                for (const m of task.materials || []) {
+                    if (Materials.pathOf(m.id)) continue;
+                    const stream = await this.download(remote, `/server/teacher/material/${encodeURIComponent(remote.servername)}/${task.id}/${m.id}`);
+                    if (stream) await Materials.storeCopy(m, stream);
+                }
+                for (const sub of Object.values(replica.submissions?.[task.id] || {})) {
+                    for (const file of sub.files || []) {
+                        if (Submissions.has(file.id)) continue;
+                        const stream = await this.download(remote, `/server/teacher/file/${encodeURIComponent(remote.servername)}/${task.id}/${file.id}`);
+                        if (stream) await Submissions.storeCopy(replica.course?.id || null, task, sub, file, stream);
+                    }
+                }
+            }
+        } catch (e) {
+            log.warn(`coTeacher @ syncFiles: ${e.message}`);
+        } finally {
+            this.syncBusy = false;
+        }
+    }
+
+    /** GET a file from the teacher app leading the lesson; resolves to the response stream or null. */
+    download({ host, port, token }, route) {
+        return new Promise(async (resolve) => {
+            const headers = { ...(await buildAppSecretHeaders()), Authorization: `Bearer ${token}` };
+            const key = `${host}:${port}`;
+            const req = https.request({ host, port, path: route, method: 'GET', headers, rejectUnauthorized: false, agent: false }, (res) => {
+                if (res.statusCode !== 200) { res.resume(); resolve(null); return; }
+                resolve(res);
+            });
+            req.on('socket', (socket) => socket.on('secureConnect', () => {
+                const fp = String(socket.getPeerCertificate()?.fingerprint256 || '').replace(/:/g, '').toLowerCase();
+                if (this.pins.get(key) && this.pins.get(key) !== fp) req.destroy(new Error('certificate changed'));
+            }));
+            req.setTimeout(30000, () => req.destroy(new Error('timeout')));
+            req.on('error', () => resolve(null));
+            req.end();
+        });
+    }
+
+    /** Material added on this (not leading) teacher app: upload it to the leading one. */
+    async uploadMaterial(taskId, file) {
+        if (!this.remote) return { status: 'error', code: 'NOT_JOINED' };
+        const { host, port, token, servername } = this.remote;
+        const stat = fs.statSync(file);
+        const hash = crypto.createHash('sha256');
+        for await (const chunk of fs.createReadStream(file)) hash.update(chunk);
+        const headers = {
+            ...(await buildAppSecretHeaders()), Authorization: `Bearer ${token}`, 'Content-Type': 'application/octet-stream',
+            'Content-Length': stat.size, 'X-File-Name': encodeURIComponent(path.basename(file)), 'X-File-Size': String(stat.size), 'X-File-Sha256': hash.digest('hex'),
+        };
+        return new Promise((resolve) => {
+            const req = https.request({ host, port, path: `/server/teacher/material/${encodeURIComponent(servername)}/${taskId}`, method: 'POST', headers, rejectUnauthorized: false, agent: false }, (res) => {
+                const chunks = [];
+                res.on('data', (c) => chunks.push(c));
+                res.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch { resolve({ status: 'error' }); } });
+            });
+            req.on('error', () => resolve({ status: 'error', code: 'UNREACHABLE' }));
+            fs.createReadStream(file).pipe(req);
+        });
     }
 
     /** Our copy of the course is newer (edited during the lesson): send it to the teacher app leading the lesson. */

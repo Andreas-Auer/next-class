@@ -289,10 +289,24 @@ router.post('/update', (req, res) => {
             // other teacher apps of this session: the student reconnects there if this host fails
             teachers: (session.coTeachers || []).filter((c) => c.ip && Date.now() - c.lastSeen < 30000).map((c) => ({ ip: c.ip, port: c.apiPort })),
             screenshotinterval: session.serverstatus.screenshotinterval,
+            tasks: publicTasks(session, student),
         },
         studentstatus,
     });
 });
+
+/** Open tasks of the lesson as the student sees them (incl. own submission, no other students). */
+function publicTasks(session, student) {
+    const id = student.courseKey || student.clientname;
+    return (session.tasks || []).filter((t) => t.open).map((t) => {
+        const sub = session.submissions?.[t.id]?.[id];
+        return {
+            id: t.id, title: t.title, text: t.text, deadline: t.deadline, maxBytes: t.maxBytes, folderName: t.folderName,
+            materials: (t.materials || []).map(({ id: mid, name, size, sha256 }) => ({ id: mid, name, size, sha256 })),
+            mine: sub ? { count: sub.files.length, lastAt: sub.lastAt, files: sub.files.map((f) => ({ name: f.name, size: f.size })) } : null,
+        };
+    });
+}
 
 /** Live view: latest screenshot is kept in memory only (never written to disk). */
 router.post('/updatescreenshot', (req, res) => {

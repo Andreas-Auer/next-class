@@ -87,6 +87,34 @@
                         </button>
                     </div>
                     <p v-if="clientinfo.netlock?.state === 'error' && clientinfo.netlock?.error" class="small text-danger">{{ clientinfo.netlock.error }}</p>
+                    <!-- tasks: hand in files (works in the school network, also while the internet is locked) -->
+                    <div v-for="task in clientinfo.tasks || []" :key="task.id" class="border rounded p-3 mt-3 taskbox" :class="{ dragging: dropTask === task.id }"
+                         :data-e2e="`task-${task.title}`" @dragover.prevent="dropTask = task.id" @dragleave="dropTask = null" @drop.prevent="dropFiles(task, $event)">
+                        <div class="d-flex align-items-start">
+                            <h5 class="me-auto mb-1">📝 {{ task.title }}</h5>
+                            <span v-if="task.deadline" class="small" :class="Date.now() > task.deadline ? 'text-danger' : 'text-secondary'">{{ $t('student.deadline', { time: formatTime(task.deadline) }) }}</span>
+                        </div>
+                        <div v-if="task.text" class="small mb-2" style="white-space: pre-wrap;">{{ task.text }}</div>
+                        <div v-if="task.materials?.length" class="mb-2">
+                            <div class="small fw-semibold">{{ $t('student.materials') }}</div>
+                            <div v-for="m in task.materials" :key="m.id" class="small d-flex align-items-center">
+                                <span class="me-auto">📄 {{ m.name }}</span>
+                                <button class="btn btn-sm btn-link p-0" :data-e2e="`material-${m.name}`" @click="downloadMaterial(task, m)">{{ $t('student.download') }}</button>
+                            </div>
+                        </div>
+                        <div v-if="task.mine?.count" class="small mb-2" style="color:#198754;" :data-e2e="`submitted-${task.title}`">
+                            ✓ {{ $t('student.submitted', { time: formatTime(task.mine.lastAt), n: task.mine.count }) }}
+                            <div class="text-secondary">{{ task.mine.files.map((f) => f.name).join(', ') }}</div>
+                        </div>
+                        <div v-if="uploads[task.id]" class="small mb-2" :data-e2e="`uploading-${task.title}`">
+                            <span v-if="!uploads[task.id].finished" class="spinner-border spinner-border-sm me-1"></span>{{ uploads[task.id].text }}
+                        </div>
+                        <button class="btn btn-primary btn-sm" :disabled="uploads[task.id] && !uploads[task.id].finished" :data-e2e="`submit-${task.title}`" @click="submit(task)">
+                            {{ task.mine?.count ? $t('student.submitmore') : $t('student.submit') }}
+                        </button>
+                        <span class="small text-secondary ms-2">{{ $t('student.drophint') }}</span>
+                    </div>
+
                     <p class="text-secondary small mt-3 mb-3">{{ $t('student.hidehint') }}</p>
                     <button class="btn btn-danger btn-sm" data-e2e="leave" @click="leaveSession">{{ $t('student.leave') }}</button>
                 </div>
@@ -201,6 +229,8 @@ export default {
             username: '',
             profile: null,
             pf: { firstName: '', lastName: '', className: '' },
+            uploads: {},   // taskId -> { text, finished }
+            dropTask: null,
             pincode: '',
             serverip: '',
             advanced: false,
@@ -242,6 +272,9 @@ export default {
         this.fetchTimer = setInterval(() => this.fetchInfo(), FETCH_INTERVAL_MS)
         this.tickTimer = setInterval(() => { this.nowTick = Date.now() }, 1000)
         window.ipcRenderer.on('applock-state', () => this.fetchInfo())   // show the warning right away
+        window.ipcRenderer.on('submit-progress', (_e, p) => {
+            if (!p.done) this.uploads = { ...this.uploads, [p.taskId]: { text: this.$t('student.uploadprogress', { i: p.index + 1, n: p.total, name: p.name }), finished: false } }
+        })
     },
 
     beforeUnmount() {
@@ -273,6 +306,27 @@ export default {
         },
         liveBeacon(c) {
             return this.serverlist.find((s) => s.courseId === c.id) || null
+        },
+        /** Hand in files: from the dialog (paths = null) or dropped onto the task. */
+        async submit(task, paths = null) {
+            this.uploads = { ...this.uploads, [task.id]: { text: this.$t('student.uploading'), finished: false } }
+            const r = await window.ipcRenderer.invoke('submit-files', { taskId: task.id, paths })
+            if (r?.status === 'cancelled') { const u = { ...this.uploads }; delete u[task.id]; this.uploads = u; return }
+            const text = r?.status === 'success'
+                ? this.$t('student.uploadok', { n: r.files.length })
+                : this.$t('student.uploadfailed', { names: (r?.failed || []).map((f) => `${f.name} (${this.$t(`student.uploaderr.${f.code}`) || f.code})`).join(', ') })
+            this.uploads = { ...this.uploads, [task.id]: { text, finished: true, error: r?.status !== 'success' } }
+            this.fetchInfo()
+        },
+        dropFiles(task, event) {
+            this.dropTask = null
+            const paths = [...(event.dataTransfer?.files || [])].map((f) => window.files.pathOf(f)).filter(Boolean)
+            if (paths.length) this.submit(task, paths)
+        },
+        async downloadMaterial(task, m) {
+            const r = await window.ipcRenderer.invoke('download-material', { taskId: task.id, materialId: m.id })
+            if (r?.status === 'success') this.$swal.fire({ title: 'OK', text: this.$t('student.downloaded', { path: r.path }), icon: 'success', timer: 5000 })
+            else this.$swal.fire({ title: this.$t('general.error'), text: this.$t('student.downloadfailed'), icon: 'error' })
         },
         async participate() {
             await window.ipcRenderer.invoke('participate')
@@ -485,6 +539,8 @@ export default {
 
 <style scoped>
 #content { background-color: #f5f5f5; }
+.taskbox { background: #fff; }
+.taskbox.dragging { outline: 3px dashed #0d6efd; }
 .nc-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 1050; display: flex; align-items: center; justify-content: center; }
 .nobutton { cursor: default; }
 .disabledexam { pointer-events: none; opacity: 0.5; }

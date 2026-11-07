@@ -150,7 +150,9 @@
       "enrolled": "was enrolled in the course",
       "released": "was released",
       "release-back": "is locked again",
-      "knock-restart": "knocks after a restart"
+      "knock-restart": "knocks after a restart",
+      "task": "set a task",
+      "submitted": "handed in"
     }
   },
   "coteacher": {
@@ -284,5 +286,30 @@
     "notjoined": "online – not joined",
     "offline": "offline",
     "alarm": "Alarm"
+  },
+  "tasks": {
+    "title": "Tasks",
+    "new": "Task",
+    "tasktitle": "Title",
+    "titleplaceholder": "e.g. Floor plan",
+    "text": "Description",
+    "deadline": "Due",
+    "limit": "At most",
+    "material": "Material for the students",
+    "addmaterial": "Add files …",
+    "storedin": "Submissions are saved to:",
+    "create": "Set task",
+    "none": "No task in this lesson yet.",
+    "closed": "closed",
+    "until": "until {time}",
+    "openfolder": "Open folder",
+    "close": "Close",
+    "count": "{n} of {total} handed in",
+    "localstored": "stored on your device: {n} of {total} files",
+    "materialfailed": "Not all material could be added.",
+    "errors": {
+      "MISSING_TITLE": "Please enter a title.",
+      "FOLDER_MISSING": "The submission folder is not reachable. Please choose another folder."
+    }
   }
 }

@@ -306,6 +306,7 @@ class CommHandler {
         // the other teacher apps of this session (reconnect targets if the host fails)
         if (this.lastSession && Array.isArray(serverstatus.teachers)) this.lastSession.backups = serverstatus.teachers;
         if (serverstatus.sessionId) ci.sessionId = serverstatus.sessionId;
+        ci.tasks = Array.isArray(serverstatus.tasks) ? serverstatus.tasks : [];   // tasks of the lesson incl. own submissions
         AppLock.setPolicy(serverstatus.applock, this.lockOwner());
         NetLock.sync(serverstatus.netlock, { hostip: this.config.hostip, teacherIp: ci.serverip, owner: this.lockOwner() });   // async, guarded
 

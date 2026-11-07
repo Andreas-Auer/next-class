@@ -85,7 +85,29 @@
     "knockdenied": "The teacher did not let you into \"{course}\".",
     "livehint": "The lesson is live. Click \"Join the lesson\" to take part.",
     "participate": "Join the lesson",
-    "released": "The teacher released you from \"{course}\"."
+    "released": "The teacher released you from \"{course}\".",
+    "deadline": "Due {time}",
+    "materials": "Material",
+    "download": "Download",
+    "submitted": "Submission received {time} – {n} file(s)",
+    "submit": "Hand in files",
+    "submitmore": "Hand in more files",
+    "drophint": "or drop files here",
+    "uploading": "Uploading …",
+    "uploadprogress": "File {i} of {n}: {name}",
+    "uploadok": "{n} file(s) handed in – received and checked by the teacher.",
+    "uploadfailed": "Not handed in: {names}. Please try again.",
+    "downloaded": "Saved to {path}",
+    "downloadfailed": "The material could not be downloaded.",
+    "uploaderr": {
+      "TOO_LARGE": "too large",
+      "NOT_FOUND": "not found",
+      "NOT_A_FILE": "not a file",
+      "INCOMPLETE": "incomplete",
+      "NETWORK": "no connection",
+      "TASK_CLOSED": "task closed",
+      "FOLDER_MISSING": "teacher folder not reachable"
+    }
   },
   "general": {
     "ok": "OK",

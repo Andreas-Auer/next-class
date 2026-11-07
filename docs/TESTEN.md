@@ -39,6 +39,22 @@ und die Schüler-App auf Gerät B starten (jeweils `npm --prefix teacher run dev
 | Host fällt aus | Mit Co-Lehrkraft: Lehrer-App des Hosts hart beenden oder WLAN aus | Nach ca. 20–30 s: Co-Lehrkraft „Du leitest jetzt die Unterrichtseinheit“; Schüler verbinden sich selbst neu, Sperren bleiben |
 | Programm übernehmen | ☰ auf einer Kachel → „Erlauben“ | Programm steht unter „Eigene Programme“ und wird nicht mehr geschlossen |
 
+### Kurse, Ablauf, Sitzplan, Abgaben (Schritte 15–21)
+
+| Was | Wie | Erwartung |
+|---|---|---|
+| Erster Start | Lehrer-App neu starten | Name und Abgabe-Ordner werden einmal abgefragt; ⚙ Einstellungen zeigt den Ordner ganz oben |
+| Kurs anlegen | **+ Neuer Kurs**: Name, Zeit 08:00–09:40, Vorlage | Kachel mit Name, Lehrkraft, Zeit; ⚙ zeigt die feste 6-stellige PIN |
+| Erste Stunde | Unterricht starten; Schüler-App: Vorname/Nachname/Klasse, dann PIN | Schüler sind eingeschrieben und „neu“ |
+| Zweite Stunde | Kurs erneut starten | Eingeschriebene Geräte erscheinen von selbst („online – nicht beigetreten“), mit „Am Unterricht teilnehmen“ grün; neue Geräte klopfen an |
+| Sperren | **Unterricht starten – Computer sperren** | 10 s Vorwarnung, dann Internet und Programme gesperrt bis Stundenende |
+| Alarm | Schüler beendet Next-Class oder WLAN aus | Kachel rot, Hinweis oben, Ton |
+| Neustart | Schüler startet Next-Class neu | Klopft an; nach **Einlassen** wieder dabei |
+| Freigabe | 🔓 → vorübergehend / für diese Stunde | Sperren beim Schüler aufgehoben; „für diese Stunde“ trennt ihn |
+| Sitzplan | **Sitzplan**, Schüler auf Plätze ziehen, ⇅ | Plätze rasten ein, tauschen; Ansicht spiegelt sich |
+| Zweite Lehrkraft | Lehrer-Code + Zulassen, später Kurs selbst starten | Danach Kurs auf ihrer Startseite; beim nächsten Mal ohne Code dabei |
+| Aufgabe | 📝 Aufgaben → + Aufgabe mit Material | Schüler sieht Aufgabe und Material; Abgabe landet in `Datum_Kurs_Wort/Nachname Vorname/` bei **beiden** Lehrkräften |
+
 **Wichtig zur Programmsperre:** Mit `npm run dev` (ungepackte App) werden Programme nur **gemeldet**,
 nie geschlossen – damit beim Entwickeln nichts verloren geht. Echtes Schließen passiert nur in der
 installierten App (`npm --prefix student run build:win:msi` bzw. `build:mac:arm64`).

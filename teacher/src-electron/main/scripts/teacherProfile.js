@@ -41,7 +41,7 @@ class TeacherProfile {
 
     /** Documents/Next-Class Abgaben (app.getPath follows the OS, including OneDrive-redirected documents on Windows). */
     defaultFolder() {
-        return path.join(app.getPath('documents'), DEFAULT_FOLDER_NAME);
+        return path.join(process.env.NEXT_CLASS_DOCUMENTS_DIR || app.getPath('documents'), DEFAULT_FOLDER_NAME);
     }
 
     load() {

@@ -23,5 +23,5 @@ Jeder Schritt bekommt einen eigenen Branch (`step-N-…`) und eine Testanleitung
 | 17 | Schüler-Anmeldung: Vorname/Nachname/Klasse, Geräteschlüssel, automatisches Einschreiben in Stunde 1, danach Anklopfen, Live-Anzeige und Farben | erledigt (`step-17-enrollment`) |
 | 18 | Unterrichtsablauf: „Am Unterricht teilnehmen“, „Unterricht starten – Computer sperren“ (10 s), Freigaben, Alarm mit Ton, Anklopfen nach Neustart | erledigt (`step-18-lesson`) |
 | 19 | Sitzplan: Raster, Gang, Einrasten/Tauschen, „Nicht zugeordnet“, Ansicht vorne/hinten, Status pro Platz | erledigt (`step-19-seating`) |
-| 20 | Aufgaben und Abgaben: Ablage pro Datum/Kurs/Aufgabe/Schüler, erneute Abgabe, 1 GB, Verteilung an alle Lehrkräfte | offen |
-| 21 | Material austeilen (Downloads/Next-Class/…) | offen |
+| 20 | Aufgaben und Abgaben: Ablage pro Datum/Kurs/Aufgabe/Schüler, erneute Abgabe, 1 GB, Verteilung an alle Lehrkräfte | erledigt (`step-20-tasks`) |
+| 21 | Material austeilen (Downloads/Next-Class/…) | erledigt (`step-20-tasks`, zusammen mit 20) |

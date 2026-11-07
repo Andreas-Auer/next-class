@@ -15,6 +15,9 @@
         <button class="btn btn-sm me-3 fw-semibold" :class="lessonLocked ? 'btn-outline-light' : 'btn-danger'" data-e2e="lesson-lock" @click="toggleLessonLock">
             {{ lessonLocked ? $t('lesson.unlock') : $t('lesson.lock') }}
         </button>
+        <button class="btn btn-outline-light btn-sm me-2" data-e2e="tasks-open" @click="tasksOpen = true">
+            📝 {{ $t('tasks.title') }} <span v-if="tasks.length" class="badge bg-secondary ms-1">{{ tasks.length }}</span>
+        </button>
         <button class="btn btn-outline-light btn-sm me-2" data-e2e="events-open" @click="openEvents">
             {{ $t('events.title') }} <span v-if="events.length" class="badge bg-secondary ms-1">{{ events.length }}</span>
         </button>
@@ -220,6 +223,9 @@
         </div>
     </div>
 
+    <TaskPanel v-if="tasksOpen" :tasks="tasks" :students="students" :course-id="course?.id || ''" :local-counts="localCounts"
+               @close="tasksOpen = false" @create="createTask" @close-task="closeTask" />
+
     <AppPicker v-if="pickerOpen" :catalog="applockData.catalog" :custom-entries="applockData.customEntries" :allowed-ids="allowedIds"
                @close="pickerOpen = false" @apply="applyPicked" @save-template="saveTemplate" @delete-custom="deleteCustom" />
 
@@ -248,12 +254,13 @@
 <script>
 import AppPicker from '../components/AppPicker.vue'
 import SeatingPlan from '../components/SeatingPlan.vue'
+import TaskPanel from '../components/TaskPanel.vue'
 import { alarmFor, LESSON_GRACE_SECONDS } from 'next-class-shared/lessonRules.js'
 const POLL_MS = 2000
 const VIOLATION_SHOW_MS = 5 * 60 * 1000   // a violation badge stays visible for 5 minutes
 
 export default {
-    components: { AppPicker, SeatingPlan },
+    components: { AppPicker, SeatingPlan, TaskPanel },
     data() {
         return {
             servername: this.$route.params.servername,
@@ -284,6 +291,9 @@ export default {
             teacherCode: '',
             course: null,
             knocks: [],
+            tasks: [],
+            tasksOpen: false,
+            localCounts: {},
             layout: 'seating',
             seating: null,
             seatView: 'front',
@@ -584,6 +594,9 @@ export default {
             if (info?.status === 'success') this.applySessionInfo(info)
             this.teachers = (await this.api('teacherList', this.servername)) || []
             this.knocks = this.course ? ((await this.api('knockList', this.servername)) || []) : []
+            this.tasks = (await this.api('taskList', this.servername)) || []
+            const ids = Object.fromEntries(this.tasks.map((t) => [t.id, Object.values(t.submissions || {}).flatMap((x) => x.files.map((f) => f.id))]))
+            this.localCounts = await window.ipcRenderer.invoke('submissions-local-count', ids)
             this.checkTeacherJoins()
             this.events = (await this.api('sessionEvents', this.servername)) || []
             const result = await this.api('studentlist', this.servername)
@@ -686,6 +699,25 @@ export default {
             if (r.isDismissed) return
             const mode = r.isDenied ? 'permanent' : (student.released === 'temporary' ? 'back' : 'temporary')
             await this.api('releaseStudent', { servername: this.servername, clientname: student.clientname, mode })
+            this.fetchStudents()
+        },
+        /** Create a task; material is uploaded afterwards. done(error text or null) */
+        async createTask({ materials, ...data }, done) {
+            const profile = await window.ipcRenderer.invoke('profile-get')
+            const r = await this.api('createTask', { servername: this.servername, ...data, createdBy: profile.name })
+            if (r?.status !== 'success') {
+                done(r?.code ? this.$t(`tasks.errors.${r.code}`) : this.$t('general.error'))
+                return
+            }
+            if (materials.length) {
+                const m = await window.ipcRenderer.invoke('task-add-material', { servername: this.servername, taskId: r.task.id, paths: materials, remote: this.remote })
+                if (m.status !== 'success') this.$swal.fire({ title: this.$t('general.error'), text: this.$t('tasks.materialfailed'), icon: 'warning' })
+            }
+            await this.fetchStudents()
+            done(null)
+        },
+        async closeTask(task) {
+            await this.api('closeTask', { servername: this.servername, taskId: task.id })
             this.fetchStudents()
         },
         async decideKnock(k, approve) {

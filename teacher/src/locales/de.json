@@ -150,7 +150,9 @@
       "enrolled": "wurde in den Kurs eingeschrieben",
       "released": "wurde freigegeben",
       "release-back": "wird wieder gesperrt",
-      "knock-restart": "klopft nach Neustart an"
+      "knock-restart": "klopft nach Neustart an",
+      "task": "hat eine Aufgabe gestellt",
+      "submitted": "hat abgegeben"
     }
   },
   "coteacher": {
@@ -284,5 +286,30 @@
     "notjoined": "online – nicht beigetreten",
     "offline": "offline",
     "alarm": "Alarm"
+  },
+  "tasks": {
+    "title": "Aufgaben",
+    "new": "Aufgabe",
+    "tasktitle": "Titel",
+    "titleplaceholder": "z. B. Grundriss EG",
+    "text": "Beschreibung",
+    "deadline": "Abgabe bis",
+    "limit": "Höchstens",
+    "material": "Material für die Schülerinnen und Schüler",
+    "addmaterial": "Dateien hinzufügen …",
+    "storedin": "Abgaben werden gespeichert in:",
+    "create": "Aufgabe stellen",
+    "none": "Noch keine Aufgabe in dieser Stunde.",
+    "closed": "geschlossen",
+    "until": "bis {time}",
+    "openfolder": "Ordner öffnen",
+    "close": "Schließen",
+    "count": "{n} von {total} abgegeben",
+    "localstored": "bei dir gespeichert: {n} von {total} Dateien",
+    "materialfailed": "Nicht alle Materialien konnten hinzugefügt werden.",
+    "errors": {
+      "MISSING_TITLE": "Bitte einen Titel eingeben.",
+      "FOLDER_MISSING": "Der Abgabe-Ordner ist nicht erreichbar (z. B. Netzlaufwerk nicht verbunden). Bitte einen anderen Ordner wählen."
+    }
   }
 }

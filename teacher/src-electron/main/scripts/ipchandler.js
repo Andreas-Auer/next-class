@@ -15,7 +15,7 @@
  * If not, see <http://www.gnu.org/licenses/>
  */
 
-import { ipcMain } from 'electron';
+import { ipcMain, dialog } from 'electron';
 import { networkInterfaces } from 'os';
 import ip from 'ip';
 import log from 'electron-log';
@@ -32,6 +32,8 @@ import { sessionNameFor } from '../../../../shared/courseRules.js';
 import { cleanPersonName, uniqueName } from '../../../../shared/studentNames.js';
 import { isNewStudent } from '../../../../shared/enrollment.js';
 import { normalizeSeating } from '../../../../shared/seating.js';
+import Submissions from './submissions.js';
+import Materials from './materials.js';
 import { sessionOps } from './sessionOps.js';
 import { resolveEntries, entryFromRunningApp } from '../../../../shared/appCatalog.js';
 
@@ -123,6 +125,7 @@ class IpcHandler {
             if (!session) return false;
             session.broadcastInterval?.stop();
             try { session.server?.close(); } catch { /* already closed */ }
+            Materials.removeAll(session.tasks);   // copies of handed out material are not kept
             delete this.config.examServerList[servername];
             this.multicastClient.examServerList = this.multicastClient.examServerList.filter((s) => s.servername !== servername);
             log.info(`ipchandler @ stopserver: session "${servername}" ended`);
@@ -318,6 +321,8 @@ class IpcHandler {
                 events: (session.events || []).slice(0, 100),
                 course: this.courseOf(session),
                 lessonNumber: session.lessonNumber || 0,
+                tasks: session.tasks || [],
+                submissions: session.submissions || {},
             };
         });
 
@@ -522,6 +527,45 @@ class IpcHandler {
             return CourseStore.setLocal(id, allowed);
         });
         ipcMain.handle('course-local', (_e, id) => CourseStore.local(id));
+
+        // ---- tasks, submissions, material ---------------------------------------------
+        /** New task { servername, title, text, deadline, maxMb, createdBy } (files are stored on the leading teacher app). */
+        this.op('createTask', (_e, { servername, ...data } = {}) => {
+            const session = this.session(servername);
+            if (!session) return { status: 'error' };
+            const r = Submissions.createTask(session, data);
+            if (r.status === 'success') addEvent(session, data.createdBy || session.teacherName, 'task', r.task.title);
+            return r;
+        });
+        this.op('closeTask', (_e, { servername, taskId } = {}) => {
+            const task = this.session(servername)?.tasks?.find((x) => x.id === taskId);
+            if (!task) return { status: 'error' };
+            task.open = false;
+            return { status: 'success' };
+        });
+        this.op('taskList', (_e, servername) => {
+            const session = this.session(servername);
+            return session ? Submissions.overview(session) : [];
+        });
+        /** How many files of each task are stored on THIS device: { taskId: [fileIds] } -> { taskId: n }. */
+        ipcMain.handle('submissions-local-count', (_e, byTask = {}) => Object.fromEntries(Object.entries(byTask).map(([id, ids]) => [id, Submissions.localCount(ids || [])])));
+        ipcMain.handle('choose-files', async () => {
+            const r = await dialog.showOpenDialog(this.WindowHandler?.mainwindow, { properties: ['openFile', 'multiSelections'] });
+            return r.canceled ? [] : r.filePaths;
+        });
+        /** Add material: on this app's lesson directly, or uploaded to the teacher app leading the lesson. */
+        ipcMain.handle('task-add-material', async (_e, { servername, taskId, paths = [], remote } = {}) => {
+            const results = [];
+            for (const file of paths.slice(0, 20)) {
+                if (remote) {
+                    results.push(await CoTeacherClient.uploadMaterial(taskId, file));
+                } else {
+                    const task = this.session(servername)?.tasks?.find((x) => x.id === taskId);
+                    results.push(task ? await Materials.addLocal(task, file) : { status: 'error' });
+                }
+            }
+            return { status: results.every((r) => r.status === 'success') ? 'success' : 'error', results };
+        });
         /** Seating plan of the course (shared with the other teachers of the course). */
         this.op('setSeating', (_e, { servername, seating } = {}) => {
             const session = this.session(servername);
@@ -598,6 +642,8 @@ class IpcHandler {
         session.knocks = new Map();
         session.readmitted = new Set();
         session.lessonNumber = replica.lessonNumber || 0;
+        session.tasks = replica.tasks || [];
+        session.submissions = replica.submissions || {};
         session.events = replica.events || [];
         this.config.examServerList[replica.servername] = session;
         this.refreshTeacherNames(session);

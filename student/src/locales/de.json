@@ -85,7 +85,29 @@
     "knockdenied": "Die Lehrkraft hat dich bei „{course}“ nicht eingelassen.",
     "livehint": "Der Unterricht ist live. Mit „Am Unterricht teilnehmen“ bist du dabei.",
     "participate": "Am Unterricht teilnehmen",
-    "released": "Du wurdest von der Lehrkraft aus „{course}“ freigegeben."
+    "released": "Du wurdest von der Lehrkraft aus „{course}“ freigegeben.",
+    "deadline": "Abgabe bis {time}",
+    "materials": "Material",
+    "download": "Herunterladen",
+    "submitted": "Abgabe erhalten {time} – {n} Datei(en)",
+    "submit": "Dateien abgeben",
+    "submitmore": "Weitere Dateien abgeben",
+    "drophint": "oder Dateien hierher ziehen",
+    "uploading": "Wird hochgeladen …",
+    "uploadprogress": "Datei {i} von {n}: {name}",
+    "uploadok": "{n} Datei(en) abgegeben – bei der Lehrkraft angekommen und geprüft.",
+    "uploadfailed": "Nicht abgegeben: {names}. Bitte erneut versuchen.",
+    "downloaded": "Gespeichert in {path}",
+    "downloadfailed": "Das Material konnte nicht geladen werden.",
+    "uploaderr": {
+      "TOO_LARGE": "zu groß",
+      "NOT_FOUND": "nicht gefunden",
+      "NOT_A_FILE": "keine Datei",
+      "INCOMPLETE": "unvollständig",
+      "NETWORK": "keine Verbindung",
+      "TASK_CLOSED": "Aufgabe geschlossen",
+      "FOLDER_MISSING": "Ordner der Lehrkraft nicht erreichbar"
+    }
   },
   "general": {
     "ok": "OK",

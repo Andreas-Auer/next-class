@@ -23,6 +23,7 @@ import config from '../../../main/config.js';
 import { computeAppMac, API_TS_HEADER, API_MAC_HEADER, API_TS_WINDOW_MS } from '../../../../../shared/apiSecret.js';
 import controlRoutes from './server/control.js';
 import teacherRoutes from './server/teacher.js';
+import { studentFiles, teacherFiles } from './server/files.js';
 
 export const serverRouter = Router();
 
@@ -56,6 +57,8 @@ async function requireNextExamAppSecret(req, res, next) {
 
 serverRouter.use(requireNextExamAppSecret);  //this requires the shared app secret to be sent in the header of the request
 serverRouter.use('/control/', controlRoutes);
+serverRouter.use('/control/', studentFiles);   // raw file uploads/downloads (no JSON body)
 serverRouter.use('/teacher/', teacherRoutes);
+serverRouter.use('/teacher/', teacherFiles);
 
 

@@ -21,11 +21,14 @@
  * This is used to preload packages for the renderer process of electron (the frontend)
  */
 
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
 let config = ipcRenderer.sendSync('getconfig')  // we need to fetch the updated version of the systemconfig from express api (server.js)
 
 
+
+// Path of a file dropped onto the window (hand in files by drag and drop)
+contextBridge.exposeInMainWorld('files', { pathOf: (file) => webUtils.getPathForFile(file) });
 
 // Expose configuration (readonly) to the renderer process
 contextBridge.exposeInMainWorld('config', config);
