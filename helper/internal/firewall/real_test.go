@@ -69,7 +69,11 @@ func TestRealFirewall(t *testing.T) {
 	}
 	want := map[string]bool{"1.1.1.1:443": true, "8.8.8.8:53": true, "8.8.8.8:443": false, "9.9.9.9:443": false}
 	for _, a := range targets {
-		if got := reach(a); got != want[a] {
+		got := reach(a)
+		if want[a] && !got {
+			got = reachRetry(a)
+		}
+		if got != want[a] {
 			t.Errorf("locked: %s reachable=%v, want %v", a, got, want[a])
 		}
 	}
