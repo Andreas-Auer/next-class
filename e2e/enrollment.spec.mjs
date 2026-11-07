@@ -52,13 +52,6 @@ async function completeStudentProfile(page, firstName, lastName, className = '3a
   await expect(dlg).toBeHidden();
 }
 
-async function confirmInterfacePicker(page) {
-  const dialog = page.locator('.swal2-popup').filter({ has: page.locator('select.swal2-select') });
-  if (await dialog.isVisible({ timeout: 4_000 }).catch(() => false)) {
-    await dialog.locator('.swal2-confirm').click();
-    await expect(dialog).toBeHidden();
-  }
-}
 
 
 
@@ -89,7 +82,6 @@ test('course enrollment: first lesson automatic, then automatic rejoin and knock
     await test.step('teacher creates the course and starts lesson 1', async () => {
       tApp = await launch(teacherMain, 'teacher');
       t = await getAppWindow(tApp);
-      await confirmInterfacePicker(t);
       await completeWelcome(t, 'Herr Auer');
       await t.locator('[data-e2e="course-new"]').click();
       await t.locator('[data-e2e="course-name"]').fill('BP-KU');
@@ -100,7 +92,6 @@ test('course enrollment: first lesson automatic, then automatic rejoin and knock
     await test.step('lesson 1: Maria joins with the PIN and is enrolled automatically ("neu")', async () => {
       s1App = await launch(studentMain, 's1');
       s1 = await getAppWindow(s1App);
-      await confirmInterfacePicker(s1);
       await completeStudentProfile(s1, 'Maria', 'Musterschülerin');
       await joinWithPin(s1, pin);
       await expect(s1.locator('[data-e2e="connected-card"]')).toBeVisible({ timeout: 20_000 });
@@ -126,7 +117,6 @@ test('course enrollment: first lesson automatic, then automatic rejoin and knock
     await test.step('lesson 2: a new device knocks and the teacher lets it in', async () => {
       s2App = await launch(studentMain, 's2');
       s2 = await getAppWindow(s2App);
-      await confirmInterfacePicker(s2);
       await completeStudentProfile(s2, 'Max', 'Muster', '3bHBT');
       await joinWithPin(s2, pin);
       await expect(s2.locator('[data-e2e="knock-pending"]')).toBeVisible({ timeout: 20_000 });

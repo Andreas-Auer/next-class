@@ -64,13 +64,6 @@ async function completeStudentProfile(page, firstName, lastName, className = '3a
   await expect(dlg).toBeHidden();
 }
 
-async function confirmInterfacePicker(page) {
-  const dialog = page.locator('.swal2-popup').filter({ has: page.locator('select.swal2-select') });
-  if (await dialog.isVisible({ timeout: 4_000 }).catch(() => false)) {
-    await dialog.locator('.swal2-confirm').click();
-    await expect(dialog).toBeHidden();
-  }
-}
 
 async function closeSwal(page) {
   const confirm = page.locator('.swal2-container .swal2-confirm');
@@ -107,7 +100,6 @@ test('student joins with PIN, reconnects, gets locked and unlocked, then leaves'
       teacherApp = await electron.launch({ args: [`--user-data-dir=${path.join(profileRoot, 'teacher')}`, teacherMain], cwd: path.join(repoRoot, 'teacher'), env });
       teacher = await getAppWindow(teacherApp);
       attachDiagnostics('TEACHER', teacherApp, teacher);
-      await confirmInterfacePicker(teacher);
       await completeWelcome(teacher, 'Herr Auer');
       await teacher.locator('[data-e2e="session-name"]').fill(sessionName);
       await teacher.locator('[data-e2e="session-start"]').click();
@@ -120,7 +112,6 @@ test('student joins with PIN, reconnects, gets locked and unlocked, then leaves'
       studentApp = await electron.launch({ args: [`--user-data-dir=${path.join(profileRoot, 'student')}`, studentMain], cwd: path.join(repoRoot, 'student'), env });
       student = await getAppWindow(studentApp);
       attachDiagnostics('STUDENT', studentApp, student);
-      await confirmInterfacePicker(student);
       await completeStudentProfile(student, 'Maria', 'Musterschülerin');
       await student.locator('[data-e2e="pin"]').fill(pin === '0000' ? '0001' : '0000');   // wrong PIN first
       const manual = student.locator('[data-e2e="manual-search"]');

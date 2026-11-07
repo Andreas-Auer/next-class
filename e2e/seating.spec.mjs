@@ -52,13 +52,6 @@ async function completeStudentProfile(page, firstName, lastName, className = '3a
   await expect(dlg).toBeHidden();
 }
 
-async function confirmInterfacePicker(page) {
-  const dialog = page.locator('.swal2-popup').filter({ has: page.locator('select.swal2-select') });
-  if (await dialog.isVisible({ timeout: 4_000 }).catch(() => false)) {
-    await dialog.locator('.swal2-confirm').click();
-    await expect(dialog).toBeHidden();
-  }
-}
 
 
 
@@ -84,7 +77,8 @@ test('seating plan: drag students onto seats, swap, switch view, plan stays for 
   try {
     const tApp = await launch(teacherMain, 'teacher'); apps.push(tApp);
     const t = await getAppWindow(tApp);
-    await confirmInterfacePicker(t);
+    // small laptop (like the 1024x768 Windows CI screen): the whole room must fit without scrolling sideways
+    await tApp.evaluate(({ BrowserWindow }) => { for (const w of BrowserWindow.getAllWindows()) { w.unmaximize(); w.setSize(1024, 700); } });
     await completeWelcome(t, 'Herr Auer');
     await t.locator('[data-e2e="course-new"]').click();
     await t.locator('[data-e2e="course-name"]').fill('BP-KU');
@@ -96,7 +90,6 @@ test('seating plan: drag students onto seats, swap, switch view, plan stays for 
     for (const [dir, first, last] of [['s1', 'Maria', 'Musterschülerin'], ['s2', 'Max', 'Muster']]) {
       const app = await launch(studentMain, dir); apps.push(app);
       const s = await getAppWindow(app);
-      await confirmInterfacePicker(s);
       await completeStudentProfile(s, first, last);
       await joinWithPin(s, pin);
       await expect(s.locator('[data-e2e="connected-card"]')).toBeVisible({ timeout: 20_000 });

@@ -24,7 +24,7 @@ import log from 'electron-log';
 import {SchedulerService} from './schedulerservice.ts'
 
 /** Subnet broadcast address (ip | ~netmask) of the interface owning hostip; null if not found. */
-function getSubnetBroadcast(hostip) {
+export function getSubnetBroadcast(hostip) {
     for (const addrs of Object.values(os.networkInterfaces())) {
         const a = addrs?.find(x => x.family === 'IPv4' && x.address === hostip)
         if (a) return a.address.split('.').map((o, i) => o | (~a.netmask.split('.')[i] & 255)).join('.')

@@ -40,13 +40,6 @@ async function completeWelcome(page, name) {
   await expect(page.locator('[data-e2e="session-name"]')).toBeVisible();
 }
 
-async function confirmInterfacePicker(page) {
-  const dialog = page.locator('.swal2-popup').filter({ has: page.locator('select.swal2-select') });
-  if (await dialog.isVisible({ timeout: 4_000 }).catch(() => false)) {
-    await dialog.locator('.swal2-confirm').click();
-    await expect(dialog).toBeHidden();
-  }
-}
 
 
 test('course: create, start with presets, second teacher joins once with code and then directly', async () => {
@@ -64,7 +57,6 @@ test('course: create, start with presets, second teacher joins once with code an
     await test.step('teacher A creates the course BP-KU', async () => {
       aApp = await launch('a', hostPort);
       a = await getAppWindow(aApp);
-      await confirmInterfacePicker(a);
       await completeWelcome(a, 'Herr Auer');
       await a.locator('[data-e2e="course-new"]').click();
       const dlg = a.locator('[data-e2e="course-settings"]');
@@ -92,7 +84,6 @@ test('course: create, start with presets, second teacher joins once with code an
     await test.step('teacher B joins once with teacher code and approval', async () => {
       bApp = await launch('b', coPort);
       b = await getAppWindow(bApp);
-      await confirmInterfacePicker(b);
       await completeWelcome(b, 'Frau Huber');
       await b.locator('[data-e2e="cojoin-address"]').fill(`127.0.0.1:${hostPort}`);
       await b.locator('[data-e2e="cojoin-search"]').click();

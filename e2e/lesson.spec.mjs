@@ -52,13 +52,6 @@ async function completeStudentProfile(page, firstName, lastName, className = '3a
   await expect(dlg).toBeHidden();
 }
 
-async function confirmInterfacePicker(page) {
-  const dialog = page.locator('.swal2-popup').filter({ has: page.locator('select.swal2-select') });
-  if (await dialog.isVisible({ timeout: 4_000 }).catch(() => false)) {
-    await dialog.locator('.swal2-confirm').click();
-    await expect(dialog).toBeHidden();
-  }
-}
 
 
 
@@ -88,7 +81,6 @@ test('lesson: alarm on quit, knock after restart, temporary and permanent releas
     await test.step('lesson runs, Maria takes part', async () => {
       tApp = await launch(teacherMain, 'teacher');
       t = await getAppWindow(tApp);
-      await confirmInterfacePicker(t);
       await completeWelcome(t, 'Herr Auer');
       await t.locator('[data-e2e="course-new"]').click();
       await t.locator('[data-e2e="course-name"]').fill('BP-KU');
@@ -98,7 +90,6 @@ test('lesson: alarm on quit, knock after restart, temporary and permanent releas
       pin = (await t.locator('[data-e2e="session-pin"]').textContent()).trim();
       sApp = await launch(studentMain, 'student');
       s = await getAppWindow(sApp);
-      await confirmInterfacePicker(s);
       await completeStudentProfile(s, 'Maria', 'Musterschülerin');
       await joinWithPin(s, pin);
       await expect(s.locator('[data-e2e="connected-card"]')).toBeVisible({ timeout: 20_000 });
@@ -115,7 +106,6 @@ test('lesson: alarm on quit, knock after restart, temporary and permanent releas
     await test.step('app restarted: Maria knocks, the teacher lets her in again', async () => {
       sApp = await launch(studentMain, 'student');
       s = await getAppWindow(sApp);
-      await confirmInterfacePicker(s);
       const manual = s.locator('[data-e2e="manual-search"]');
       if (!(await manual.isChecked())) await manual.check();
       await s.locator('[data-e2e="server-ip"]').fill(`127.0.0.1:${hostPort}`);   // network without multicast

@@ -133,7 +133,7 @@
         </div>
 
         <!-- Student grid -->
-        <div id="studentslist" class="flex-grow-1 p-3 overflow-auto" style="background-color: #f5f5f5;">
+        <div id="studentslist" class="flex-grow-1 p-3 overflow-auto" style="background-color: #f5f5f5; min-width: 0;">
             <div v-if="course" class="btn-group btn-group-sm mb-3" role="group">
                 <button class="btn" :class="layout === 'seating' ? 'btn-dark' : 'btn-outline-dark'" data-e2e="layout-seating" @click="layout = 'seating'">{{ $t('seating.title') }}</button>
                 <button class="btn" :class="layout === 'tiles' ? 'btn-dark' : 'btn-outline-dark'" data-e2e="layout-tiles" @click="layout = 'tiles'">{{ $t('seating.tiles') }}</button>

@@ -26,7 +26,7 @@
     </div>
 
     <div v-if="view === 'back'" class="board mb-2">{{ $t('seating.board') }}</div>
-    <div class="seatgrid" :style="{ gridTemplateColumns: colOrder.map((c) => isAisle(c) ? '28px' : 'minmax(120px, 1fr)').join(' ') }">
+    <div class="seatgrid" :style="{ gridTemplateColumns: colOrder.map((c) => isAisle(c) ? '16px' : 'minmax(0, 1fr)').join(' ') }">
         <template v-if="editing">
             <button v-for="c in colOrder" :key="'h' + c" class="btn btn-sm p-0 small" :class="isAisle(c) ? 'btn-secondary' : 'btn-outline-secondary'"
                     :title="$t('seating.aisletoggle')" :data-e2e="`aisle-${c}`" @click="toggleAisle(c)">{{ isAisle(c) ? '' : c + 1 }}</button>
@@ -122,11 +122,12 @@ export default {
 </script>
 
 <style scoped>
-.seatgrid { display: grid; gap: 6px; }
-.seat { min-height: 64px; border: 1px dashed #ced4da; border-radius: 6px; background: #fff; }
+/* columns shrink with the window: the whole room stays visible without scrolling sideways (small laptops) */
+.seatgrid { display: grid; gap: 4px; }
+.seat { min-width: 0; min-height: 52px; border: 1px dashed #ced4da; border-radius: 6px; background: #fff; }
 .seat.aisle { border: none; background: transparent; }
 .seat.over { border: 2px solid #0d6efd; }
-.seatcard { height: 100%; min-height: 60px; border-radius: 6px; padding: 4px 6px; cursor: grab; border-left: 6px solid #6c757d; background: #f8f9fa; }
+.seatcard { height: 100%; min-height: 48px; min-width: 0; overflow: hidden; border-radius: 6px; padding: 4px 6px; cursor: grab; border-left: 6px solid #6c757d; background: #f8f9fa; }
 .seatcard.participating { border-left-color: #198754; }
 .seatcard.notjoined { border-left-color: #fd7e14; }
 .seatcard.offline { border-left-color: #adb5bd; opacity: 0.7; }

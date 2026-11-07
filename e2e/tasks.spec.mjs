@@ -53,13 +53,6 @@ async function completeStudentProfile(page, firstName, lastName, className = '3a
   await expect(dlg).toBeHidden();
 }
 
-async function confirmInterfacePicker(page) {
-  const dialog = page.locator('.swal2-popup').filter({ has: page.locator('select.swal2-select') });
-  if (await dialog.isVisible({ timeout: 4_000 }).catch(() => false)) {
-    await dialog.locator('.swal2-confirm').click();
-    await expect(dialog).toBeHidden();
-  }
-}
 
 
 
@@ -102,7 +95,6 @@ test('task: material download, submissions stored for both teachers without over
     await test.step('lesson with two teachers and Maria', async () => {
       const aApp = await launch(teacherMain, 'a', hostPort); apps.push(aApp);
       a = await getAppWindow(aApp);
-      await confirmInterfacePicker(a);
       await completeWelcome(a, 'Herr Auer');
       await a.locator('[data-e2e="course-new"]').click();
       await a.locator('[data-e2e="course-name"]').fill('BP-KU');
@@ -114,7 +106,6 @@ test('task: material download, submissions stored for both teachers without over
 
       const bApp = await launch(teacherMain, 'b', coPort); apps.push(bApp);
       b = await getAppWindow(bApp);
-      await confirmInterfacePicker(b);
       await completeWelcome(b, 'Frau Huber');
       await b.locator('[data-e2e="cojoin-address"]').fill(`127.0.0.1:${hostPort}`);
       await b.locator('[data-e2e="cojoin-search"]').click();
@@ -127,7 +118,6 @@ test('task: material download, submissions stored for both teachers without over
 
       const sApp = await launch(studentMain, 's', hostPort); apps.push(sApp);
       s = await getAppWindow(sApp);
-      await confirmInterfacePicker(s);
       await completeStudentProfile(s, 'Maria', 'Musterschülerin');
       await joinWithPin(s, pin);
       await expect(s.locator('[data-e2e="connected-card"]')).toBeVisible({ timeout: 20_000 });

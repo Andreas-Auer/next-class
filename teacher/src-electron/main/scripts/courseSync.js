@@ -15,6 +15,7 @@ import crypto from 'crypto';
 import log from 'electron-log';
 import CourseStore, { CourseStore as CourseStoreClass } from './courseStore.js';
 import CoTeacherClient from './coTeacherClient.js';
+import { getSubnetBroadcast } from './multicastserver.js';
 import { buildAnnouncement, parseAnnouncement, coursesToFetch } from '../../../../shared/courseSync.js';
 
 const ANNOUNCE_MS = 15000;
@@ -35,7 +36,7 @@ class CourseSync {
             this.socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
             this.socket.on('error', (e) => log.warn(`courseSync @ socket: ${e.message}`));
             this.socket.bind(0, () => {
-                try { this.socket.setMulticastTTL(8); } catch { /* default */ }
+                try { this.socket.setBroadcast(true); this.socket.setMulticastTTL(8); } catch { /* default */ }
                 try { if (config.hostip) this.socket.setMulticastInterface(config.hostip); } catch { /* default route */ }
             });
         } catch (e) {
@@ -55,9 +56,11 @@ class CourseSync {
         const courses = CourseStore.load().courses;
         if (!courses.length) return;
         const msg = Buffer.from(JSON.stringify(buildAnnouncement(courses, { instance: this.instance, apiPort: this.config.serverApiPort })));
-        this.socket.send(msg, 0, msg.length, this.config.multicastServerClientPort, this.config.multicastServerAdrr, (e) => {
-            if (e) log.warn(`courseSync @ announce: ${e.message}`);
-        });
+        const done = (e) => { if (e) log.warn(`courseSync @ announce: ${e.message}`); };
+        this.socket.send(msg, 0, msg.length, this.config.multicastServerClientPort, this.config.multicastServerAdrr, done);
+        // also as subnet broadcast, like the lesson beacons: school networks often swallow multicast
+        const broadcast = getSubnetBroadcast(this.config.hostip);
+        if (broadcast) this.socket.send(msg, 0, msg.length, this.config.multicastServerClientPort, broadcast, done);
     }
 
     /** Called by the multicast client for every packet; returns true if it was a course announcement. */

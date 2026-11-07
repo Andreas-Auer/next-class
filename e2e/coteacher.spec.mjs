@@ -52,13 +52,6 @@ async function completeStudentProfile(page, firstName, lastName, className = '3a
   await expect(dlg).toBeHidden();
 }
 
-async function confirmInterfacePicker(page) {
-  const dialog = page.locator('.swal2-popup').filter({ has: page.locator('select.swal2-select') });
-  if (await dialog.isVisible({ timeout: 4_000 }).catch(() => false)) {
-    await dialog.locator('.swal2-confirm').click();
-    await expect(dialog).toBeHidden();
-  }
-}
 
 test('co-teacher joins with code + approval and controls the session', async () => {
   test.setTimeout(180_000);
@@ -77,7 +70,6 @@ test('co-teacher joins with code + approval and controls the session', async () 
     await test.step('host starts a session', async () => {
       hostApp = await launch(teacherMain, 'host', hostPort);
       host = await getAppWindow(hostApp);
-      await confirmInterfacePicker(host);
       await completeWelcome(host, 'Herr Auer');
       await host.locator('[data-e2e="session-name"]').fill(sessionName);
       await host.locator('[data-e2e="session-start"]').click();
@@ -89,7 +81,6 @@ test('co-teacher joins with code + approval and controls the session', async () 
     await test.step('co-teacher finds the session by IP and asks to join with a wrong, then the right code', async () => {
       coApp = await launch(teacherMain, 'co', coPort);
       co = await getAppWindow(coApp);
-      await confirmInterfacePicker(co);
       await completeWelcome(co, 'Frau Huber');
       await co.locator('[data-e2e="cojoin-address"]').fill(`127.0.0.1:${hostPort}`);
       await co.locator('[data-e2e="cojoin-search"]').click();
@@ -121,7 +112,6 @@ test('co-teacher joins with code + approval and controls the session', async () 
     await test.step('student joins; both teachers see the student', async () => {
       studentApp = await launch(studentMain, 'student', hostPort);
       student = await getAppWindow(studentApp);
-      await confirmInterfacePicker(student);
       await completeStudentProfile(student, 'Tom', 'Team');
       await student.locator('[data-e2e="pin"]').fill(pin);
       const manual = student.locator('[data-e2e="manual-search"]');
@@ -179,7 +169,6 @@ test('host app crashes: co-teacher takes over, student reconnects, lock stays', 
     await test.step('host + co-teacher + student, screens locked', async () => {
       hostApp = await launch(teacherMain, 'host', hostPort);
       host = await getAppWindow(hostApp);
-      await confirmInterfacePicker(host);
       await completeWelcome(host, 'Herr Auer');
       await host.locator('[data-e2e="session-name"]').fill(sessionName);
       await host.locator('[data-e2e="session-start"]').click();
@@ -189,7 +178,6 @@ test('host app crashes: co-teacher takes over, student reconnects, lock stays', 
 
       coApp = await launch(teacherMain, 'co', coPort);
       co = await getAppWindow(coApp);
-      await confirmInterfacePicker(co);
       await completeWelcome(co, 'Frau Huber');
       await co.locator('[data-e2e="cojoin-address"]').fill(`127.0.0.1:${hostPort}`);
       await co.locator('[data-e2e="cojoin-search"]').click();
@@ -202,7 +190,6 @@ test('host app crashes: co-teacher takes over, student reconnects, lock stays', 
 
       studentApp = await launch(studentMain, 'student', hostPort);
       student = await getAppWindow(studentApp);
-      await confirmInterfacePicker(student);
       await completeStudentProfile(student, 'Fritz', 'Failover');
       await student.locator('[data-e2e="pin"]').fill(pin);
       const manual = student.locator('[data-e2e="manual-search"]');
