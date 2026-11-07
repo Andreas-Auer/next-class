@@ -33,6 +33,8 @@ Ohne diese Berechtigung sieht die Lehrkraft „Keine Bildfreigabe“, alles ande
      den Unterricht startet. Unter **Meine Kurse** steht, welcher Kurs gerade **live** ist (grün).
    - Ein **neues Gerät** klopft ab der zweiten Stunde an („Angeklopft – warte, bis dich die Lehrkraft einlässt“);
      die Lehrkraft lässt es mit **Einlassen** herein.
+   - Einen Kurs, den es nicht mehr gibt, entfernt man unter **Meine Kurse** mit **✕** (nur wenn er gerade nicht live ist).
+     Kurse, die ein Jahr lang nicht stattgefunden haben, verschwinden von selbst.
 3. Fertig – das Fenster darf geschlossen werden, Next-Class läuft im Hintergrund weiter (Symbol in der Taskleiste bzw. Menüleiste).
 4. **Einmalig:** Wenn „Internetsperre einrichten“ angezeigt wird, darauf klicken und das
    **Administrator-Passwort** eingeben (Windows: „Ja“ bei der Rückfrage). Das richtet einen kleinen
@@ -112,7 +114,8 @@ Findet die Schüler-App die Unterrichtseinheit nicht (manche WLANs blockieren di
 - **Unterricht starten** auf der Kurs-Kachel: Vorlage, Ausnahmen und Ende der Stunde („Sperren bis“) sind schon eingestellt.
 - **Teamteaching im Kurs:** Tritt eine Lehrkraft einmal einer Stunde des Kurses bei (Lehrer-Code + Zulassen), gehört
   sie danach zum Kurs. Startet sie später denselben Kurs, während er schon läuft, ist sie ohne Code direkt dabei.
-  Die Kurseinstellungen werden dabei abgeglichen; der Abgabe-Ordner bleibt pro Lehrkraft.
+  Die Kurseinstellungen gleichen sich **von selbst** ab, sobald die Apps beider Lehrkräfte im selben Netz laufen –
+  auch ohne gemeinsame Stunde (die neuere Änderung gilt). Abgabe-Ordner und Ansicht vorne/hinten bleiben pro Lehrkraft.
 - Für einmalige Stunden gibt es die **Einzelstunde** (eigene PIN nur für diese Stunde).
 
 **Empfohlener Ablauf mit Fachsoftware:** Schüler starten zuerst Archicad, Rhino usw. (die Lizenz wird

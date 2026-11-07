@@ -25,3 +25,4 @@ Jeder Schritt bekommt einen eigenen Branch (`step-N-…`) und eine Testanleitung
 | 19 | Sitzplan: Raster, Gang, Einrasten/Tauschen, „Nicht zugeordnet“, Ansicht vorne/hinten, Status pro Platz | erledigt (`step-19-seating`) |
 | 20 | Aufgaben und Abgaben: Ablage pro Datum/Kurs/Aufgabe/Schüler, erneute Abgabe, 1 GB, Verteilung an alle Lehrkräfte | erledigt (`step-20-tasks`) |
 | 21 | Material austeilen (Downloads/Next-Class/…) | erledigt (`step-20-tasks`, zusammen mit 20) |
+| 22 | Wartung und Lücken: echter Test der Programmsperre in der CI (Windows-Fehler behoben), Ende-zu-Ende-Tests auch auf Windows, Kursabgleich ohne gemeinsame Stunde, „Kurs entfernen“ für Schüler, CI-Bausteine aktualisiert | erledigt (`step-22-maintenance`) |

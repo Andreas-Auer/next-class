@@ -53,6 +53,8 @@ und die Schüler-App auf Gerät B starten (jeweils `npm --prefix teacher run dev
 | Freigabe | 🔓 → vorübergehend / für diese Stunde | Sperren beim Schüler aufgehoben; „für diese Stunde“ trennt ihn |
 | Sitzplan | **Sitzplan**, Schüler auf Plätze ziehen, ⇅ | Plätze rasten ein, tauschen; Ansicht spiegelt sich |
 | Zweite Lehrkraft | Lehrer-Code + Zulassen, später Kurs selbst starten | Danach Kurs auf ihrer Startseite; beim nächsten Mal ohne Code dabei |
+| Kursabgleich | Beide Lehrer-Apps offen, keine Stunde; Lehrkraft B ändert die Zeit des Kurses | Nach höchstens ca. 15 s zeigt die Kachel bei Lehrkraft A die neue Zeit |
+| Kurs entfernen (Schüler) | Kurs ist nicht live; unter „Meine Kurse“ ✕ → bestätigen | Kurs verschwindet; mit der PIN kann man wieder beitreten |
 | Aufgabe | 📝 Aufgaben → + Aufgabe mit Material | Schüler sieht Aufgabe und Material; Abgabe landet in `Datum_Kurs_Wort/Nachname Vorname/` bei **beiden** Lehrkräften |
 
 **Wichtig zur Programmsperre:** Mit `npm run dev` (ungepackte App) werden Programme nur **gemeldet**,
@@ -62,7 +64,9 @@ Zum ersten Ausprobieren in der Klasse den Modus „Nur melden“ wählen und die
 
 ## Bekannte Grenzen
 
-- Windows- und Linux-Teile der Programmsperre sind noch nicht auf echten Geräten getestet.
+- Die Programmsperre wird bei jedem Push in der CI **echt** geprüft (Job „Program lock“): Editor/TextEdit/xterm
+  und ein Hintergrundprogramm „discord“ werden erkannt, gesperrt und geschlossen – auf Windows, macOS und Linux (X11).
+  Nicht geprüft: echte Fachsoftware (Archicad, Rhino …) und Geräte mit Schüler-Konten ohne Admin-Rechte.
 - Linux mit Wayland: nur die Blockliste (Chat, Spiele …) wird durchgesetzt, keine Freigabeliste.
 - Host-Ausfall ohne Co-Lehrkraft: Niemand übernimmt; die Sperren laufen auf den Schülergeräten bis zur Endzeit (+5 min) weiter.
 - Schüler können die App beenden: Die Lehrkraft sieht „App beendet“; die Internetsperre bleibt (Hilfsdienst),

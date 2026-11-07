@@ -47,7 +47,8 @@ Stand: 2026-11-06. Getroffen von Andreas Auer.
 |---|---|
 | Kurs | Wiederkehrender Unterricht mit Name (z. B. `BP-KU`), fester 6-stelliger PIN, Programm-Vorlage, Internet-Ausnahmen, Sitzplan und Zeit pro Kurs (Uhrzeit wie 08:00–09:40, alternativ Stunden und Minuten). |
 | Einzelstunde | Einmalige Einheit ohne Kurs, eigener, klar unterscheidbarer Button. |
-| Synchronisation | Kurseinstellungen werden zwischen den Lehrkräften des Kurses synchronisiert. **Ausnahmen:** Ansicht von vorne/hinten und Abgabe-Ordner gelten pro Lehrkraft. |
+| Synchronisation | Kurseinstellungen werden zwischen den Lehrkräften des Kurses synchronisiert – in gemeinsamen Stunden und zusätzlich immer, wenn beide Apps im selben Netz laufen (Ankündigung alle 15 s mit einem aus dem Kurs-Geheimnis abgeleiteten Kennzeichen, kein Kursname; die neuere Version gilt). **Ausnahmen:** Ansicht von vorne/hinten und Abgabe-Ordner gelten pro Lehrkraft. |
+| Gelöschte Kurse | Schülergeräte erfahren davon nicht. Schüler entfernen den Kurs unter „Meine Kurse“ mit ✕; nach einem Jahr ohne Stunde verschwindet er von selbst. |
 | Kurs-Kacheln | Kursname groß und fett, darunter klein die Namen der Lehrkräfte. |
 | Kurs entfernen | Schüler können einen Kurs nicht selbst entfernen. Er verschwindet, wenn die Lehrkraft den Schüler entfernt oder den Kurs löscht. |
 | PIN-Schutz | Zu viele falsche PINs sperren das Durchprobieren vorübergehend. |
