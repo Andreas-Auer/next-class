@@ -63,6 +63,46 @@ jobs:
           path: test-results/
           retention-days: 7
 
+  firewall:
+    # Installs the real internet lock on throw-away runners for a few seconds and checks
+    # what is blocked (Windows Defender Firewall, macOS pf, Linux nftables).
+    name: Internet lock (${{ matrix.name }})
+    needs: unit
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+          - name: macOS
+            os: macos-latest
+          - name: Linux
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: helper/go.sum
+      - name: Install nftables
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q nftables
+      - name: Build test binary
+        working-directory: helper
+        run: go test -c -o fwtest.exe ./internal/firewall
+      - name: Lock, check, unlock (Windows, runner is admin)
+        if: runner.os == 'Windows'
+        working-directory: helper
+        env:
+          NC_REAL_FIREWALL: '1'
+        run: ./fwtest.exe -test.run TestRealFirewall -test.v
+      - name: Lock, check, unlock (macOS / Linux, as root)
+        if: runner.os != 'Windows'
+        working-directory: helper
+        run: sudo NC_REAL_FIREWALL=1 ./fwtest.exe -test.run TestRealFirewall -test.v
+
   build:
     name: Installers (${{ matrix.name }})
     needs: unit
