@@ -52,7 +52,9 @@
       "CERT": "Die Verbindung zur Lehrer-App konnte nicht abgesichert werden.",
       "WRONG_PIN": "Keine Unterrichtseinheit mit dieser PIN gefunden.",
       "NAME_TAKEN": "Dieser Name ist in der Unterrichtseinheit bereits verbunden. Bitte einen anderen Namen wählen.",
-      "VERSION_MISMATCH": "Die Schüler-App passt nicht zur Version der Lehrer-App."
+      "VERSION_MISMATCH": "Die Schüler-App passt nicht zur Version der Lehrer-App.",
+      "REMOVED": "Du wurdest aus diesem Kurs entfernt.",
+      "PIN_BLOCKED": "Zu viele falsche PINs. Bitte in 2 Minuten erneut versuchen."
     },
     "reconnecting": "Verbindung zu „{name}“ unterbrochen – Next-Class verbindet automatisch neu …",
     "joinonly": "Nur dieser beitreten",
@@ -67,7 +69,20 @@
     "netlocksetup": "Internetsperre einrichten",
     "netlockinstalling": "Wird eingerichtet …",
     "netlockinstalled": "Die Internetsperre ist eingerichtet.",
-    "netlockinstallfailed": "Die Einrichtung hat nicht geklappt."
+    "netlockinstallfailed": "Die Einrichtung hat nicht geklappt.",
+    "mycourses": "Meine Kurse",
+    "live": "live",
+    "notlive": "nicht verfügbar",
+    "signedinas": "Angemeldet als",
+    "welcome": "Willkommen bei Next-Class",
+    "welcometext": "Bitte einmalig deinen Namen und deine Klasse eintragen.",
+    "firstname": "Vorname",
+    "lastname": "Nachname",
+    "class": "Klasse",
+    "namelocked": "Danach kann nur noch eine Lehrkraft deinen Namen ändern.",
+    "save": "Speichern",
+    "knockpending": "Angeklopft bei „{course}“ – warte, bis dich die Lehrkraft einlässt.",
+    "knockdenied": "Die Lehrkraft hat dich bei „{course}“ nicht eingelassen."
   },
   "general": {
     "ok": "OK",

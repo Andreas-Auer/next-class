@@ -63,7 +63,8 @@
     "invalidname": "Ungültiger Name für die Unterrichtseinheit.",
     "serverexists": "Diese Unterrichtseinheit läuft bereits.",
     "serverexistsLAN": "Eine andere Lehrkraft verwendet diesen Namen bereits im Netzwerk.",
-    "pinblocked": "Zu viele falsche PINs von diesem Gerät. Bitte in 2 Minuten erneut versuchen."
+    "pinblocked": "Zu viele falsche PINs von diesem Gerät. Bitte in 2 Minuten erneut versuchen.",
+    "removedfromcourse": "Du wurdest aus diesem Kurs entfernt."
   },
   "applock": {
     "title": "Programmsperre",
@@ -144,7 +145,9 @@
       "firewall": "Firewall verändert",
       "netlock-problem": "Internetsperre nicht wirksam",
       "teacher-joined": "ist als Lehrkraft beigetreten",
-      "host-failover": "hat die Unterrichtseinheit übernommen (andere Lehrer-App ausgefallen)"
+      "host-failover": "hat die Unterrichtseinheit übernommen (andere Lehrer-App ausgefallen)",
+      "knock": "klopft an",
+      "enrolled": "wurde in den Kurs eingeschrieben"
     }
   },
   "coteacher": {
@@ -232,6 +235,13 @@
       "NAME_TAKEN": "Es gibt schon einen Kurs mit diesem Namen.",
       "NOT_FOUND": "Kurs nicht gefunden.",
       "START_FAILED": "Der Unterricht konnte nicht gestartet werden."
-    }
+    },
+    "newbadge": "neu",
+    "newhint": "In dieser Stunde neu eingeschrieben",
+    "rename": "Namen ändern",
+    "removestudent": "Aus dem Kurs entfernen",
+    "removestudentconfirm": "{name} aus dem Kurs entfernen? Das Gerät tritt dem Kurs danach nicht mehr bei.",
+    "knocks": "klopft an und möchte am Kurs teilnehmen",
+    "admit": "Einlassen"
   }
 }

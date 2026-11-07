@@ -17,6 +17,7 @@
 
 import { desktopCapturer, screen, systemPreferences } from 'electron';
 import log from 'electron-log';
+import StudentProfile from './studentProfile.js';
 import WindowHandler from './windowhandler.js';
 import { SchedulerService } from './schedulerservice.ts';
 import { syncClientDisplayInfo } from './displayInfo.js';
@@ -25,6 +26,8 @@ import { ScreenActivityTracker, SAMPLE_WIDTH, SAMPLE_HEIGHT, bgraToGray } from '
 import AppLock from './applock/appLock.js';
 import NetLock from './netlock/netLock.js';
 
+const KNOCK_RETRY_MS = 3000;
+const COURSE_JOIN_RETRY_MS = 5000;
 const UPDATE_INTERVAL_MS = 5000;     // heartbeat to the teacher
 const MAX_LOST_HEARTBEATS = 5;       // ~25 s without contact -> registration is dropped locally
 const SCREENSHOT_WIDTH = 1280;       // live-view thumbnail size (keeps the upload small)
@@ -49,6 +52,9 @@ class CommHandler {
         this.lastSession = null;       // { clientname, servername, serverip, pin } - for the automatic reconnect
         this.lastReconnectTry = 0;
         this.registerFn = null;        // set by IpcHandler (avoids a circular import)
+        this.manualLessons = null;     // lessons found via the manual teacher IP { at, list }
+        this.skippedLessons = new Set(); // lesson ids the student left: not joined again automatically
+        this.knocking = null;          // { servername, serverip, serverport, pin } while waiting for a teacher to let us in
         this.activity = new ScreenActivityTracker();
         this.idleTimer = null;
         this.idleForced = false;       // e2e only: fixed "unchanged since" value
@@ -115,6 +121,37 @@ class CommHandler {
             log.warn(`communicationhandler @ tryReconnect: giving up (${result?.code || result?.status || 'timeout'})`);
             this.forgetSession();
         }
+    }
+
+    /** The student left (or was removed from) the current lesson: no automatic rejoin of this lesson. */
+    skipCurrentLesson() {
+        const ci = this.multicastClient.clientinfo;
+        const beacon = [...this.multicastClient.examServerList, ...(this.manualLessons?.list || [])].find((b) => b.servername === ci.servername);
+        if (beacon?.id) this.skippedLessons.add(beacon.id);
+    }
+
+    /** Knocked at a course lesson: ask again until a teacher lets us in (or refuses). */
+    async retryKnock() {
+        if (!this.registerFn || Date.now() - (this.lastKnockTry || 0) < KNOCK_RETRY_MS) return;
+        this.lastKnockTry = Date.now();
+        await this.registerFn({ ...this.knocking });
+    }
+
+    /**
+     * A course this device is enrolled in is live in the classroom network: join it by itself.
+     * While connected to one lesson nothing changes (another course starting later is ignored).
+     */
+    async joinLiveCourse() {
+        if (!this.registerFn || Date.now() - (this.lastCourseTry || 0) < COURSE_JOIN_RETRY_MS) return;
+        const courses = StudentProfile.load().courses;
+        const manual = this.manualLessons && Date.now() - this.manualLessons.at < 15_000 ? this.manualLessons.list : [];
+        const beacon = courses.length && [...this.multicastClient.examServerList, ...manual]
+            .find((b) => b.courseId && !this.skippedLessons.has(b.id) && courses.some((c) => c.id === b.courseId));
+        if (!beacon) return;
+        this.lastCourseTry = Date.now();
+        const course = StudentProfile.course(beacon.courseId);
+        const result = await this.registerFn({ servername: beacon.servername, serverip: beacon.serverip, serverport: beacon.apiPort, pin: course.pin });
+        log.info(`communicationhandler @ joinLiveCourse: "${course.name}" -> ${result?.status === 'success' ? 'joined' : (result?.code || result?.status)}`);
     }
 
     init(mc, config) {
@@ -190,7 +227,9 @@ class CommHandler {
             return;
         }
         if (!ci.token) {
-            await this.tryReconnect();
+            if (this.lastSession) await this.tryReconnect();
+            else if (this.knocking) await this.retryKnock();
+            else await this.joinLiveCourse();
             return;
         }
         if (!ci.serverip) return;
@@ -215,6 +254,7 @@ class CommHandler {
                 log.warn('communicationhandler @ requestUpdate: registration no longer known by the teacher');
                 NetLock.lift('removed', this.lockOwner());
                 AppLock.lift('removed', this.lockOwner());
+                this.skipCurrentLesson();   // removed by the teacher: do not join this lesson again by itself
                 this.forgetSession();
                 this.resetConnection();
                 return;

@@ -52,7 +52,9 @@
       "CERT": "The connection to the teacher app could not be secured.",
       "WRONG_PIN": "No session found with this PIN.",
       "NAME_TAKEN": "This name is already connected in the session. Please choose another name.",
-      "VERSION_MISMATCH": "The student app does not match the teacher app version."
+      "VERSION_MISMATCH": "The student app does not match the teacher app version.",
+      "REMOVED": "You were removed from this course.",
+      "PIN_BLOCKED": "Too many wrong PINs. Please try again in 2 minutes."
     },
     "reconnecting": "Connection to “{name}” lost – Next-Class reconnects automatically …",
     "joinonly": "Join only this one",
@@ -67,7 +69,20 @@
     "netlocksetup": "Set up internet lock",
     "netlockinstalling": "Setting up …",
     "netlockinstalled": "The internet lock is set up.",
-    "netlockinstallfailed": "The setup did not work."
+    "netlockinstallfailed": "The setup did not work.",
+    "mycourses": "My courses",
+    "live": "live",
+    "notlive": "not available",
+    "signedinas": "Signed in as",
+    "welcome": "Welcome to Next-Class",
+    "welcometext": "Please enter your name and class once.",
+    "firstname": "First name",
+    "lastname": "Last name",
+    "class": "Class",
+    "namelocked": "Afterwards only a teacher can change your name.",
+    "save": "Save",
+    "knockpending": "Knocked at \"{course}\" – wait until the teacher lets you in.",
+    "knockdenied": "The teacher did not let you into \"{course}\"."
   },
   "general": {
     "ok": "OK",

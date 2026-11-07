@@ -29,6 +29,8 @@ import TeacherProfile from './teacherProfile.js';
 import CoTeacherClient from './coTeacherClient.js';
 import CourseStore, { CourseStore as CourseStoreClass, sharedCourse, lessonEnd } from './courseStore.js';
 import { sessionNameFor } from '../../../../shared/courseRules.js';
+import { cleanPersonName, uniqueName } from '../../../../shared/studentNames.js';
+import { isNewStudent } from '../../../../shared/enrollment.js';
 import { sessionOps } from './sessionOps.js';
 import { resolveEntries, entryFromRunningApp } from '../../../../shared/appCatalog.js';
 
@@ -89,6 +91,7 @@ class IpcHandler {
             quitAt: student.quitAt || null,
             leftAt: student.leftAt || null,
             unchangedSince: student.unchangedSince ?? null,
+            courseKey: student.courseKey || null,
         };
     }
 
@@ -161,7 +164,24 @@ class IpcHandler {
                 if (s.wasOnline === false && online) addEvent(session, s.clientname, 'online');
                 s.wasOnline = online;
             }
-            return { status: 'success', studentlist: session.studentList.map((s) => this.publicStudent(s, now)) };
+            const list = session.studentList.map((s) => this.publicStudent(s, now));
+            // course lesson: enrolled students who are not here are shown as "offline"; new ones are marked
+            const course = session.courseId && CourseStore.get(session.courseId);
+            if (course) {
+                const lesson = { ...course, lessons: session.lessonNumber || course.lessons };
+                for (const entry of list) {
+                    const rec = course.students?.find((x) => x.key === entry.courseKey);
+                    entry.isNew = isNewStudent(lesson, rec);
+                    entry.className = rec?.className || '';
+                    entry.firstName = rec?.firstName || '';
+                    entry.lastName = rec?.lastName || '';
+                }
+                for (const rec of course.students || []) {
+                    if (rec.removed || list.some((e) => e.courseKey === rec.key)) continue;
+                    list.push({ clientname: rec.name, courseKey: rec.key, className: rec.className || '', firstName: rec.firstName, lastName: rec.lastName, online: false, absent: true, isNew: false });
+                }
+            }
+            return { status: 'success', studentlist: list };
         });
 
         /** Change session settings: { servername, screenslocked?, screenshotinterval? } */
@@ -289,11 +309,12 @@ class IpcHandler {
                 teacherCode: session.teacherCode,
                 serverstatus: session.serverstatus,
                 studentList: session.studentList.map((st) => ({
-                    clientname: st.clientname, hostname: st.hostname, clientip: st.clientip, token: st.token, version: st.version, joinedAt: st.joinedAt,
+                    clientname: st.clientname, courseKey: st.courseKey || null, hostname: st.hostname, clientip: st.clientip, token: st.token, version: st.version, joinedAt: st.joinedAt,
                 })),
                 coTeachers: (session.coTeachers || []).map(({ name, ip, apiPort, token, joinedAt }) => ({ name, ip, apiPort, token, joinedAt })),
                 events: (session.events || []).slice(0, 100),
                 course: this.courseOf(session),
+                lessonNumber: session.lessonNumber || 0,
             };
         });
 
@@ -355,6 +376,8 @@ class IpcHandler {
         session.teacherName = TeacherProfile.name() || t('coteacher.you');
         session.coTeachers = [];          // { name, token, ip, joinedAt, lastSeen }
         session.pendingJoins = new Map(); // requestId -> { name, ip, at, status: pending|approved|denied, token? }
+        session.knocks = new Map();       // device key hash -> { student, status: pending|denied, at } (new devices from lesson 2 on)
+        session.lessonNumber = course ? (course.lessons || 0) + 1 : 0;
         session.serverstatus = { screenslocked: false, screenshotinterval: DEFAULT_SCREENSHOT_INTERVAL_S, idlethreshold: DEFAULT_IDLE_THRESHOLD_S };
         this.config.examServerList[servername] = session;
         this.refreshTeacherNames(session);
@@ -404,6 +427,55 @@ class IpcHandler {
             const session = this.session(servername);
             return session ? this.addTeacher(session, teacher) : null;
         };
+        /** Devices knocking at this course lesson (not enrolled yet). */
+        this.op('knockList', (_e, servername) => {
+            const session = this.session(servername);
+            if (!session?.knocks) return [];
+            const now = Date.now();
+            return [...session.knocks.values()].filter((k) => k.status === 'pending' && now - k.at < 30_000)   // still asking
+                .map((k) => ({ key: k.student.key, name: k.student.name, className: k.student.className, at: k.at }));
+        });
+        /** Let a knocking device in (enrolled in the course from now on) or refuse it for this lesson. */
+        this.op('decideKnock', (_e, { servername, key, approve } = {}) => {
+            const session = this.session(servername);
+            const knock = session?.knocks?.get(key);
+            const course = session?.courseId && CourseStore.get(session.courseId);
+            if (!knock || !course) return { status: 'error' };
+            if (approve) {
+                const taken = (course.students || []).filter((x) => !x.removed).map((x) => x.name);
+                const student = { ...knock.student, name: uniqueName(knock.student, taken), enrolledLesson: session.lessonNumber || course.lessons };
+                CourseStore.patch(course.id, { students: [...(course.students || []).filter((x) => x.key !== key), student] });
+                session.knocks.delete(key);
+                addEvent(session, student.name, 'enrolled');
+            } else {
+                knock.status = 'denied';
+            }
+            return { status: 'success' };
+        });
+        /** Teacher changes a student's name in the course (the student cannot). */
+        this.op('renameStudent', (_e, { servername, key, firstName, lastName } = {}) => {
+            const session = this.session(servername);
+            const course = session?.courseId && CourseStore.get(session.courseId);
+            const rec = course?.students?.find((x) => x.key === key);
+            const f = cleanPersonName(firstName), l = cleanPersonName(lastName);
+            if (!rec || !f || !l) return { status: 'error' };
+            const taken = course.students.filter((x) => x.key !== key && !x.removed).map((x) => x.name);
+            const name = uniqueName({ firstName: f, lastName: l, className: rec.className }, taken);
+            CourseStore.patch(course.id, { students: course.students.map((x) => (x.key === key ? { ...x, firstName: f, lastName: l, name } : x)) });
+            const live = session.studentList.find((x) => x.courseKey === key);
+            if (live) live.clientname = name;
+            return { status: 'success', name };
+        });
+        /** Remove a student from the course (the device forgets the course at its next contact). */
+        this.op('removeCourseStudent', (_e, { servername, key } = {}) => {
+            const session = this.session(servername);
+            const course = session?.courseId && CourseStore.get(session.courseId);
+            if (!course) return { status: 'error' };
+            CourseStore.patch(course.id, { students: (course.students || []).map((x) => (x.key === key ? { ...x, removed: true } : x)) });
+            session.studentList = session.studentList.filter((x) => x.courseKey !== key);
+            return { status: 'success' };
+        });
+
         /** Another teacher of the lesson edited the course (newer version wins). */
         this.op('syncCourse', (_e, { servername, course } = {}) => {
             const session = this.session(servername);
@@ -448,7 +520,7 @@ class IpcHandler {
             }
             const r = this.startSession(sessionNameFor(course.name), course);
             if (r.status !== 'success') return r;
-            CourseStore.patch(id, { lessons: (course.lessons || 0) + 1 });
+            CourseStore.patch(id, { lessons: (course.lessons || 0) + 1 });   // session.lessonNumber was set to this number
             return { status: 'started', servername: r.servername };
         });
     }
@@ -487,6 +559,8 @@ class IpcHandler {
         session.coTeachers = (replica.coTeachers || []).filter((c) => c.token !== ownToken).map((c) => ({ ...c, lastSeen: now }));
         session.teacherName = TeacherProfile.name() || t('coteacher.you');
         session.pendingJoins = new Map();
+        session.knocks = new Map();
+        session.lessonNumber = replica.lessonNumber || 0;
         session.events = replica.events || [];
         this.config.examServerList[replica.servername] = session;
         this.refreshTeacherNames(session);

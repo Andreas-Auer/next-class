@@ -29,6 +29,8 @@ import i18n from '../../../../../src/locales/locales.js';
 import { normalizeStudentClientName } from '../../../../../../shared/normalizeStudentClientName.js';
 import { decryptSessionPayload } from '../../../../../../shared/apiSecret.js';
 import { pinBlocked, recordPinFail } from '../../../../../../shared/pinGuard.js';
+import { decideJoin } from '../../../../../../shared/enrollment.js';
+import CourseStore from '../../../../main/scripts/courseStore.js';
 
 const router = Router();
 const { t } = i18n.global;
@@ -117,13 +119,48 @@ router.post('/registerclient/:servername', async (req, res) => {
         return res.send({ sender: 'server', message: t('control.versionmismatch', { version: config.version }), code: 'VERSION_MISMATCH', status: 'error' });
     }
 
-    const existing = session.studentList.find((s) => s.clientname === clientname);
     const now = Date.now();
+
+    // ---- course lesson: the device key decides (enrolled / first lesson / knock / removed) ----
+    let courseStudent = null;
+    if (session.courseId) {
+        const course = CourseStore.get(session.courseId);
+        if (!course) return res.send({ sender: 'server', message: t('control.notfound'), status: 'error' });
+        const decision = decideJoin({ ...course, lessons: session.lessonNumber || course.lessons || 1 }, payload);
+        if (decision.action === 'invalid') return res.send({ sender: 'server', message: t('control.invalidpayload'), code: 'PROFILE_MISSING', status: 'error' });
+        if (decision.action === 'removed') return res.send({ sender: 'server', message: t('control.removedfromcourse'), code: 'REMOVED', courseId: course.id, status: 'error' });
+        if (decision.action === 'knock') {
+            const knock = session.knocks.get(decision.student.key);
+            if (knock?.status === 'denied') return res.send({ sender: 'server', code: 'KNOCK_DENIED', courseName: course.name, status: 'error' });
+            if (!knock) {
+                session.knocks.set(decision.student.key, { student: decision.student, status: 'pending', at: now, ip: clientip });
+                addEvent(session, decision.student.name, 'knock');
+            } else {
+                knock.at = now;
+            }
+            return res.send({ sender: 'server', code: 'KNOCK_PENDING', courseName: course.name, status: 'error' });
+        }
+        if (decision.action === 'enroll') {
+            CourseStore.patch(course.id, { students: [...(course.students || []), decision.student] });
+            addEvent(session, decision.student.name, 'enrolled');
+        }
+        courseStudent = decision.student;
+    }
+    const name = courseStudent ? courseStudent.name : clientname;
+    const courseInfo = courseStudent ? (() => {
+        const c = CourseStore.get(session.courseId);
+        return { id: c.id, name: c.name, teachers: session.serverinfo.teachers || [] };
+    })() : null;
+
+    const existing = courseStudent
+        ? session.studentList.find((s) => s.courseKey === courseStudent.key)
+        : session.studentList.find((s) => s.clientname === clientname);
 
     if (!existing) {
         const token = `csrf-${crypto.randomUUID()}`;
         session.studentList.push({
-            clientname,
+            clientname: name,
+            courseKey: courseStudent?.key || null,
             hostname,
             clientip,
             token,
@@ -134,13 +171,14 @@ router.post('/registerclient/:servername', async (req, res) => {
             screenlock: false,
             status: {},   // one-shot commands for this student, delivered with the next /update
         });
-        addEvent(session, clientname, 'joined');
-        log.info(`control @ registerclient: "${clientname}" joined "${session.serverinfo.servername}"`);
-        return res.send({ sender: 'server', message: t('control.registered'), status: 'success', token });
+        addEvent(session, name, 'joined');
+        log.info(`control @ registerclient: "${name}" joined "${session.serverinfo.servername}"`);
+        return res.send({ sender: 'server', message: t('control.registered'), status: 'success', token, clientname: name, course: courseInfo });
     }
 
     // name already in the list: only the same device may take it over again (it proves this with its old token)
-    if (reconnectToken !== existing.token) {
+    // course students prove who they are with the device key; others with the token of their last registration
+    if (!courseStudent && reconnectToken !== existing.token) {
         const online = now - existing.timestamp <= STUDENT_OFFLINE_AFTER_MS;
         return res.send({ sender: 'server', message: t('control.nametaken'), code: online ? 'NAME_TAKEN' : 'RECONNECT_AUTH_FAILED', status: 'error' });
     }
@@ -149,9 +187,10 @@ router.post('/registerclient/:servername', async (req, res) => {
     existing.version = version;
     existing.quitAt = null;
     existing.leftAt = null;
-    addEvent(session, clientname, 'reconnected');
-    log.info(`control @ registerclient: "${clientname}" reconnected`);
-    return res.send({ sender: 'server', message: t('control.reconnected'), status: 'success', token: existing.token, reconnected: true });
+    existing.clientname = name;
+    addEvent(session, name, 'reconnected');
+    log.info(`control @ registerclient: "${name}" reconnected`);
+    return res.send({ sender: 'server', message: t('control.reconnected'), status: 'success', token: existing.token, reconnected: true, clientname: name, course: courseInfo });
 });
 
 // ---- token routes ----------------------------------------------------------

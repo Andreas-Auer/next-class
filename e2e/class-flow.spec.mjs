@@ -46,6 +46,18 @@ async function completeWelcome(page, name) {
   await expect(page.locator('[data-e2e="session-name"]')).toBeVisible();
 }
 
+/** First start of the student app: first name, last name, class (entered once). */
+async function completeStudentProfile(page, firstName, lastName, className = '3aHBT') {
+  const dlg = page.locator('[data-e2e="profile-dialog"]');
+  await expect(dlg).toBeVisible({ timeout: 15_000 });
+  await expect(dlg.locator('[data-e2e="profile-first"]')).toHaveAttribute('placeholder', 'Maria');
+  await dlg.locator('[data-e2e="profile-first"]').fill(firstName);
+  await dlg.locator('[data-e2e="profile-last"]').fill(lastName);
+  await dlg.locator('[data-e2e="profile-class"]').fill(className);
+  await dlg.locator('[data-e2e="profile-save"]').click();
+  await expect(dlg).toBeHidden();
+}
+
 async function confirmInterfacePicker(page) {
   const dialog = page.locator('.swal2-popup').filter({ has: page.locator('select.swal2-select') });
   if (await dialog.isVisible({ timeout: 4_000 }).catch(() => false)) {
@@ -62,7 +74,7 @@ async function closeSwal(page) {
 test('student joins with PIN, reconnects, gets locked and unlocked, then leaves', async () => {
   test.setTimeout(180_000);
   const sessionName = `e2e-${Date.now().toString().slice(-6)}`;
-  const studentName = 'e2e-schueler';
+  const studentName = 'Maria Musterschülerin';
   const profileRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'next-class-e2e-'));
   // the real helper in dry-run mode: full API and watchdog, but the firewall is never touched
   const helperToken = 'e2e-token-0123456789abcdef0123456789';
@@ -103,7 +115,7 @@ test('student joins with PIN, reconnects, gets locked and unlocked, then leaves'
       student = await getAppWindow(studentApp);
       attachDiagnostics('STUDENT', studentApp, student);
       await confirmInterfacePicker(student);
-      await student.locator('[data-e2e="name"]').fill(studentName);
+      await completeStudentProfile(student, 'Maria', 'Musterschülerin');
       await student.locator('[data-e2e="pin"]').fill(pin === '0000' ? '0001' : '0000');   // wrong PIN first
       const manual = student.locator('[data-e2e="manual-search"]');
       if (!(await manual.isChecked())) await manual.check();

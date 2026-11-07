@@ -25,8 +25,14 @@ Ohne diese Berechtigung sieht die Lehrkraft „Keine Bildfreigabe“, alles ande
 
 ## 2. Für Schülerinnen und Schüler
 
-1. **Next-Class Schüler** starten.
-2. **Namen** und die **PIN** eingeben, die die Lehrkraft zeigt, dann **Beitreten**.
+1. **Next-Class Schüler** starten. Beim ersten Start einmalig **Vorname, Nachname und Klasse** eintragen
+   (z. B. Maria · Musterschülerin · 3aHBT). Danach kann nur noch eine Lehrkraft den Namen ändern.
+2. Die **PIN** eingeben, die die Lehrkraft zeigt, dann **Beitreten**.
+   - In der **ersten Stunde eines Kurses** ist man damit eingeschrieben (bei der Lehrkraft als „neu“ markiert).
+   - Ab der **zweiten Stunde** tritt ein eingeschriebenes Gerät dem Kurs **von selbst** bei, sobald die Lehrkraft
+     den Unterricht startet. Unter **Meine Kurse** steht, welcher Kurs gerade **live** ist (grün).
+   - Ein **neues Gerät** klopft ab der zweiten Stunde an („Angeklopft – warte, bis dich die Lehrkraft einlässt“);
+     die Lehrkraft lässt es mit **Einlassen** herein.
 3. Fertig – das Fenster darf geschlossen werden, Next-Class läuft im Hintergrund weiter (Symbol in der Taskleiste bzw. Menüleiste).
 4. **Einmalig:** Wenn „Internetsperre einrichten“ angezeigt wird, darauf klicken und das
    **Administrator-Passwort** eingeben (Windows: „Ja“ bei der Rückfrage). Das richtet einen kleinen
@@ -55,6 +61,9 @@ Findet die Schüler-App die Unterrichtseinheit nicht (manche WLANs blockieren di
 4. **Unterrichtseinheit beenden** gibt alle Geräte frei.
 
 ### Kurse (wiederkehrender Unterricht)
+
+- Im Dashboard eines Kurses stehen alle eingeschriebenen Schülerinnen und Schüler; wer fehlt, steht grau als „offline“ da.
+  **✎** ändert den Namen, **✕** entfernt jemanden aus dem Kurs. Anklopfende Geräte erscheinen oben (orange) mit **Einlassen**.
 
 - **Meine Kurse → + Neuer Kurs**: Kursname (z. B. `BP-KU`), Unterrichtszeit (Uhrzeit wie 08:00–09:40 oder Dauer),
   Programm-Vorlage, Internet-Ausnahmen und auf Wunsch ein eigener Abgabe-Ordner.

@@ -133,7 +133,13 @@
                 <p>{{ $t('dashboard.nostudentshint', { pin }) }}</p>
             </div>
             <div class="d-flex flex-wrap gap-3">
-                <div v-for="student in sortedStudents" :key="student.clientname" class="studentwidget card shadow-sm"
+                <!-- devices knocking at a course lesson (new from the second lesson on) -->
+                <div v-for="k in knocks" :key="k.key" class="w-100 alert d-flex align-items-center mb-0 py-2" style="background:#fff3cd; border-color:#fd7e14;" :data-e2e="`knock-${k.name}`">
+                    <strong class="me-2">🚪 {{ k.name }}</strong><span class="me-auto">{{ k.className }} · {{ $t('course.knocks') }}</span>
+                    <button class="btn btn-sm btn-success me-2" :data-e2e="`knock-admit-${k.name}`" @click="decideKnock(k, true)">{{ $t('course.admit') }}</button>
+                    <button class="btn btn-sm btn-outline-danger" @click="decideKnock(k, false)">{{ $t('coteacher.deny') }}</button>
+                </div>
+                <div v-for="student in sortedStudents" :key="student.courseKey || student.clientname" class="studentwidget card shadow-sm"
                      :class="{ offline: !student.online, idle: idleSeconds(student) !== null }" :data-e2e="`student-${student.clientname}`">
                     <div class="thumb" @click="showLarge(student)">
                         <img v-if="student.imageurl && student.online" :src="student.imageurl" class="w-100 h-100" style="object-fit: contain;">
@@ -144,11 +150,15 @@
                     <div class="card-body p-2">
                         <div class="d-flex align-items-center">
                             <strong class="text-truncate me-auto" :title="`${student.clientname} (${student.hostname})`">{{ student.clientname }}</strong>
-                            <button class="btn btn-sm btn-link p-0 ms-2" :title="$t('applock.runningapps')" data-e2e="running-apps" @click="runningAppsOf = student.clientname">☰</button>
-                            <button class="btn btn-sm btn-link text-danger p-0 ms-2" :title="$t('dashboard.kick')" @click="kick(student)">✕</button>
+                            <button v-if="student.courseKey" class="btn btn-sm btn-link p-0 ms-2" :title="$t('course.rename')" data-e2e="rename" @click="rename(student)">✎</button>
+                            <button v-if="!student.absent" class="btn btn-sm btn-link p-0 ms-2" :title="$t('applock.runningapps')" data-e2e="running-apps" @click="runningAppsOf = student.clientname">☰</button>
+                            <button class="btn btn-sm btn-link text-danger p-0 ms-2" :title="student.courseKey ? $t('course.removestudent') : $t('dashboard.kick')" @click="student.courseKey ? removeFromCourse(student) : kick(student)">✕</button>
                         </div>
                         <div class="d-flex flex-wrap gap-1 mt-1">
-                            <span v-if="student.online" class="badge bg-success" data-e2e="badge-online">{{ $t('dashboard.online') }}</span>
+                            <span v-if="student.isNew" class="badge" style="background:#fd7e14;" data-e2e="badge-new" :title="$t('course.newhint')">{{ $t('course.newbadge') }}</span>
+                            <span v-if="student.className" class="badge bg-light text-dark border">{{ student.className }}</span>
+                            <span v-if="student.absent" class="badge bg-secondary" data-e2e="badge-absent">{{ $t('dashboard.offline') }}</span>
+                            <span v-else-if="student.online" class="badge bg-success" data-e2e="badge-online">{{ $t('dashboard.online') }}</span>
                             <span v-else-if="student.quitAt" class="badge bg-danger" data-e2e="badge-quit">{{ $t('events.quitat', { time: formatTime(student.quitAt) }) }}</span>
                             <span v-else-if="student.leftAt" class="badge bg-danger" data-e2e="badge-left">{{ $t('events.leftat', { time: formatTime(student.leftAt) }) }}</span>
                             <span v-else class="badge bg-secondary" data-e2e="badge-offline">{{ $t('dashboard.disconnectedsince', { time: formatTime(student.lastSeen) }) }}</span>
@@ -253,6 +263,7 @@ export default {
             leaving: false,
             teacherCode: '',
             course: null,
+            knocks: [],
             teachers: [],
             joinDialogOpen: false,
             lastPolicyId: null,
@@ -534,6 +545,7 @@ export default {
             const info = await this.api('getSessionInfo', this.servername)
             if (info?.status === 'success') this.applySessionInfo(info)
             this.teachers = (await this.api('teacherList', this.servername)) || []
+            this.knocks = this.course ? ((await this.api('knockList', this.servername)) || []) : []
             this.checkTeacherJoins()
             this.events = (await this.api('sessionEvents', this.servername)) || []
             const result = await this.api('studentlist', this.servername)
@@ -553,6 +565,32 @@ export default {
         },
         saveScreenshotInterval() {
             this.setStatus({ screenshotinterval: this.screenshotinterval })
+        },
+        async decideKnock(k, approve) {
+            await this.api('decideKnock', { servername: this.servername, key: k.key, approve })
+            this.knocks = this.knocks.filter((x) => x.key !== k.key)
+        },
+        async rename(student) {
+            const esc = (v) => String(v || '').replace(/[<>&"]/g, '')
+            const r = await this.$swal.fire({
+                title: this.$t('course.rename'),
+                html: `<input id="rn-first" class="swal2-input" placeholder="Maria" value="${esc(student.firstName)}">`
+                    + `<input id="rn-last" class="swal2-input" placeholder="Musterschülerin" value="${esc(student.lastName)}">`,
+                showCancelButton: true, cancelButtonText: this.$t('general.cancel'),
+                preConfirm: () => ({ firstName: document.getElementById('rn-first').value, lastName: document.getElementById('rn-last').value }),
+            })
+            if (!r.isConfirmed) return
+            await this.api('renameStudent', { servername: this.servername, key: student.courseKey, ...r.value })
+            this.fetchStudents()
+        },
+        async removeFromCourse(student) {
+            const r = await this.$swal.fire({
+                title: this.$t('course.removestudent'), text: this.$t('course.removestudentconfirm', { name: student.clientname }),
+                icon: 'question', showCancelButton: true, cancelButtonText: this.$t('general.cancel'),
+            })
+            if (!r.isConfirmed) return
+            await this.api('removeCourseStudent', { servername: this.servername, key: student.courseKey })
+            this.fetchStudents()
         },
         async kick(student) {
             const result = await this.$swal.fire({

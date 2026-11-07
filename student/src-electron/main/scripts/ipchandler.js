@@ -26,6 +26,7 @@ import i18n from '../../../src/locales/locales.js';
 import { gateway4sync } from '../../../../shared/defaultGateway.js';
 import { normalizeStudentClientName } from '../../../../shared/normalizeStudentClientName.js';
 import { encryptSessionPayload } from '../../../../shared/apiSecret.js';
+import StudentProfile from './studentProfile.js';
 import { updateSystemTray } from './traymenu.js';
 import { syncClientDisplayInfo } from './displayInfo.js';
 import { examApiFetch } from './examApiFetch.js';
@@ -150,7 +151,8 @@ class IpcHandler {
         const ci = this.multicastClient.clientinfo;
         if (ci.token) return { status: 'error', code: 'ALREADY_REGISTERED' };
 
-        const clientname = normalizeStudentClientName(args.clientname);
+        // the name comes from the profile (entered once); older callers may still pass clientname
+        const clientname = StudentProfile.complete() ? StudentProfile.view().name : normalizeStudentClientName(args.clientname);
         const { pin, serverip, servername } = args;
         const port = Number(args.serverport) || this.config.serverApiPort;
         if (!clientname || !pin || !serverip || !servername) return { status: 'error', code: 'MISSING_INPUT' };
@@ -164,6 +166,7 @@ class IpcHandler {
             pin, clientname, clientip, hostname,
             version: this.config.version,
             reconnectToken: this.multicastClient.reconnectToken || undefined,
+            ...(StudentProfile.complete() ? StudentProfile.identity() : {}),   // device key + name: the course recognizes this device
         };
         try {
             const packet = await encryptSessionPayload(payload, pin);
@@ -172,12 +175,23 @@ class IpcHandler {
                 { method: 'POST', signal: AbortSignal.timeout(8000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ packet }) }
             );
             const data = await response.json();
+            if (data?.code === 'KNOCK_PENDING' || data?.code === 'KNOCK_DENIED') {
+                // not enrolled in this course yet: the teacher has to let us in (we keep asking)
+                this.CommHandler.knocking = { servername, serverip, serverport: port, pin, courseName: data.courseName || servername };
+                ci.knock = { state: data.code === 'KNOCK_PENDING' ? 'pending' : 'denied', course: data.courseName || servername };
+                return { status: 'error', code: data.code, message: data.message };
+            }
+            if (data?.code === 'REMOVED' && data.courseId) StudentProfile.forgetCourse(data.courseId);
             if (data?.status !== 'success') return { status: 'error', message: data?.message, code: data?.code };
 
-            Object.assign(ci, { name: clientname, serverip, serverport: port, servername, ip: clientip, hostname, token: data.token, pin, reconnecting: false });
+            this.CommHandler.knocking = null;
+            ci.knock = null;
+            if (data.course?.id) StudentProfile.rememberCourse({ ...data.course, pin, displayName: data.clientname });
+            Object.assign(ci, { courseId: data.course?.id || null, courseName: data.course?.name || null });
+            Object.assign(ci, { name: data.clientname || clientname, serverip, serverport: port, servername, ip: clientip, hostname, token: data.token, pin, reconnecting: false });
             this.multicastClient.reconnectToken = data.token;
             this.multicastClient.beaconsLost = 0;
-            this.CommHandler.rememberSession({ clientname, servername, serverip, serverport: port, pin });
+            this.CommHandler.rememberSession({ clientname: data.clientname || clientname, servername, serverip, serverport: port, pin });
             log.info(`ipchandler @ register: ${data.reconnected ? 'reconnected to' : 'joined'} "${servername}" @ ${serverip} as ${clientname}`);
             return data;
         } catch (error) {
@@ -211,6 +225,11 @@ class IpcHandler {
         ipcMain.handle('setPreferredInterface', (_event, name) => {
             this.preferredInterface = name || null;
         });
+
+        ipcMain.handle('profile-get', () => StudentProfile.view());
+        ipcMain.handle('profile-set-name', (event, data) => (this.fromMainWindow(event) ? StudentProfile.setName(data || {}) : { status: 'error' }));
+        /** Stop knocking (student gave up waiting). */
+        ipcMain.handle('knock-cancel', () => { this.CommHandler.knocking = null; this.multicastClient.clientinfo.knock = null; return { status: 'success' }; });
 
         /** Sessions found on the network plus our own state (polled by the renderer). */
         ipcMain.handle('getinfoasync', () => {
@@ -251,6 +270,8 @@ class IpcHandler {
                 const data = await response.json();
                 // the address the student typed is the one that works from here (the teacher may report another interface)
                 data.serverlist = (data?.serverlist || []).map((server) => ({ ...server, serverip, apiPort: port }));
+                // networks without multicast: lessons found this way are joined automatically as well (own courses)
+                this.CommHandler.manualLessons = { at: Date.now(), list: data.serverlist };
                 return data;
             } catch (e) {
                 return { status: 'error', message: e.message };
@@ -313,6 +334,7 @@ class IpcHandler {
                 }
             }
             log.info('ipchandler @ disconnect: student left the session');
+            this.CommHandler.skipCurrentLesson();
             this.CommHandler.forgetSession();
             this.CommHandler.resetConnection();   // keeps the reconnect token: rejoining with the same name stays possible
             return { status: 'success' };

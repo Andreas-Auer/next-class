@@ -34,6 +34,18 @@ async function completeWelcome(page, name) {
   await expect(page.locator('[data-e2e="session-name"]')).toBeVisible();
 }
 
+/** First start of the student app: first name, last name, class (entered once). */
+async function completeStudentProfile(page, firstName, lastName, className = '3aHBT') {
+  const dlg = page.locator('[data-e2e="profile-dialog"]');
+  await expect(dlg).toBeVisible({ timeout: 15_000 });
+  await expect(dlg.locator('[data-e2e="profile-first"]')).toHaveAttribute('placeholder', 'Maria');
+  await dlg.locator('[data-e2e="profile-first"]').fill(firstName);
+  await dlg.locator('[data-e2e="profile-last"]').fill(lastName);
+  await dlg.locator('[data-e2e="profile-class"]').fill(className);
+  await dlg.locator('[data-e2e="profile-save"]').click();
+  await expect(dlg).toBeHidden();
+}
+
 async function confirmInterfacePicker(page) {
   const dialog = page.locator('.swal2-popup').filter({ has: page.locator('select.swal2-select') });
   if (await dialog.isVisible({ timeout: 4_000 }).catch(() => false)) {
@@ -104,7 +116,7 @@ test('co-teacher joins with code + approval and controls the session', async () 
       studentApp = await launch(studentMain, 'student', hostPort);
       student = await getAppWindow(studentApp);
       await confirmInterfacePicker(student);
-      await student.locator('[data-e2e="name"]').fill('team-schueler');
+      await completeStudentProfile(student, 'Tom', 'Team');
       await student.locator('[data-e2e="pin"]').fill(pin);
       const manual = student.locator('[data-e2e="manual-search"]');
       if (!(await manual.isChecked())) await manual.check();
@@ -113,7 +125,7 @@ test('co-teacher joins with code + approval and controls the session', async () 
       await student.locator('[data-e2e="join"]').click();
       await expect(student.locator('[data-e2e="connected-card"]')).toBeVisible({ timeout: 20_000 });
       for (const page of [host, co]) {
-        await expect(page.locator('[data-e2e="student-team-schueler"] [data-e2e="badge-online"]')).toBeVisible({ timeout: 20_000 });
+        await expect(page.locator('[data-e2e="student-Tom Team"] [data-e2e="badge-online"]')).toBeVisible({ timeout: 20_000 });
       }
     });
 
@@ -185,7 +197,7 @@ test('host app crashes: co-teacher takes over, student reconnects, lock stays', 
       studentApp = await launch(studentMain, 'student', hostPort);
       student = await getAppWindow(studentApp);
       await confirmInterfacePicker(student);
-      await student.locator('[data-e2e="name"]').fill('failover-schueler');
+      await completeStudentProfile(student, 'Fritz', 'Failover');
       await student.locator('[data-e2e="pin"]').fill(pin);
       const manual = student.locator('[data-e2e="manual-search"]');
       if (!(await manual.isChecked())) await manual.check();
@@ -211,7 +223,7 @@ test('host app crashes: co-teacher takes over, student reconnects, lock stays', 
 
     await test.step('student stays locked and reconnects to the new host by itself', async () => {
       expect(lockVisible()).toBe(true);
-      const tile = co.locator('[data-e2e="student-failover-schueler"]');
+      const tile = co.locator('[data-e2e="student-Fritz Failover"]');
       await expect(tile.locator('[data-e2e="badge-online"]')).toBeVisible({ timeout: 90_000 });
       await shot(co, '11-uebernahme');
     });
