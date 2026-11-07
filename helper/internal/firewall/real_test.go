@@ -29,9 +29,19 @@ func TestRealFirewall(t *testing.T) {
 		_ = c.Close()
 		return true
 	}
+	// a public server can drop a single connection: only three failures in a row count as unreachable
+	reachRetry := func(addr string) bool {
+		for i := 0; i < 3; i++ {
+			if reach(addr) {
+				return true
+			}
+			time.Sleep(time.Second)
+		}
+		return false
+	}
 	targets := []string{"1.1.1.1:443", "8.8.8.8:53", "8.8.8.8:443", "9.9.9.9:443"}
 	for _, a := range targets {
-		if !reach(a) {
+		if !reachRetry(a) {
 			t.Skipf("%s not reachable before the lock - no internet on this machine", a)
 		}
 	}
@@ -79,7 +89,7 @@ func TestRealFirewall(t *testing.T) {
 		t.Errorf("second Remove must be harmless: %v", err)
 	}
 	for _, a := range targets {
-		if !reach(a) {
+		if !reachRetry(a) {
 			t.Errorf("after Remove: %s still blocked", a)
 		}
 	}
