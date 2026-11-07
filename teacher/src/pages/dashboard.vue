@@ -131,7 +131,11 @@
 
         <!-- Student grid -->
         <div id="studentslist" class="flex-grow-1 p-3 overflow-auto" style="background-color: #f5f5f5;">
-            <div v-if="students.length === 0" class="text-secondary p-4">
+            <div v-if="course" class="btn-group btn-group-sm mb-3" role="group">
+                <button class="btn" :class="layout === 'seating' ? 'btn-dark' : 'btn-outline-dark'" data-e2e="layout-seating" @click="layout = 'seating'">{{ $t('seating.title') }}</button>
+                <button class="btn" :class="layout === 'tiles' ? 'btn-dark' : 'btn-outline-dark'" data-e2e="layout-tiles" @click="layout = 'tiles'">{{ $t('seating.tiles') }}</button>
+            </div>
+            <div v-if="students.length === 0 && !showSeating" class="text-secondary p-4">
                 <h5>{{ $t('dashboard.nostudents') }}</h5>
                 <p>{{ $t('dashboard.nostudentshint', { pin }) }}</p>
             </div>
@@ -146,6 +150,7 @@
                     <button class="btn btn-sm btn-success me-2" :data-e2e="`knock-admit-${k.name}`" @click="decideKnock(k, true)">{{ $t('course.admit') }}</button>
                     <button class="btn btn-sm btn-outline-danger" @click="decideKnock(k, false)">{{ $t('coteacher.deny') }}</button>
                 </div>
+                <template v-if="!showSeating">
                 <div v-for="student in sortedStudents" :key="student.courseKey || student.clientname" class="studentwidget card shadow-sm"
                      :class="{ offline: !student.online, idle: idleSeconds(student) !== null, alarm: !!alarmFor(student) }" :data-e2e="`student-${student.clientname}`">
                     <div class="thumb" @click="showLarge(student)">
@@ -191,7 +196,10 @@
                         </div>
                     </div>
                 </div>
+                </template>
             </div>
+            <SeatingPlan v-if="showSeating" class="mt-3" :seating="seating" :students="students" :view="seatView" :alarm-for="alarmFor"
+                         @change="saveSeating" @view="setSeatView" @select="showLarge" />
         </div>
     </div>
 
@@ -239,12 +247,13 @@
 
 <script>
 import AppPicker from '../components/AppPicker.vue'
+import SeatingPlan from '../components/SeatingPlan.vue'
 import { alarmFor, LESSON_GRACE_SECONDS } from 'next-class-shared/lessonRules.js'
 const POLL_MS = 2000
 const VIOLATION_SHOW_MS = 5 * 60 * 1000   // a violation badge stays visible for 5 minutes
 
 export default {
-    components: { AppPicker },
+    components: { AppPicker, SeatingPlan },
     data() {
         return {
             servername: this.$route.params.servername,
@@ -275,6 +284,9 @@ export default {
             teacherCode: '',
             course: null,
             knocks: [],
+            layout: 'seating',
+            seating: null,
+            seatView: 'front',
             alarmed: new Set(),
             teachers: [],
             joinDialogOpen: false,
@@ -284,6 +296,7 @@ export default {
         }
     },
     computed: {
+        showSeating() { return !!this.course && this.layout === 'seating' },
         lessonLocked() { return !!(this.applock.active || this.netlock.active) },
         alarms() {
             return this.students.map((st) => ({ student: st, reason: this.alarmFor(st) })).filter((a) => a.reason)
@@ -525,7 +538,16 @@ export default {
         /** Session state from the host (also changes made by another teacher). */
         applySessionInfo(info, initial = false) {
             this.pin = info.pin
-            if (info.course) this.course = info.course
+            if (info.course) {
+                const first = !this.course
+                this.course = info.course
+                if (!this.seatingDirty) this.seating = info.course.seating || null
+                if (first) {
+                    this.loadSeatView()
+                    // a course with a seating plan opens it; without one the tiles are shown first
+                    this.layout = Object.keys(info.course.seating?.seats || {}).length ? 'seating' : 'tiles'
+                }
+            }
             this.teacherCode = info.teacherCode
             this.serverip = info.serverip
             this.screenslocked = !!info.serverstatus?.screenslocked
@@ -582,6 +604,21 @@ export default {
         },
         saveScreenshotInterval() {
             this.setStatus({ screenshotinterval: this.screenshotinterval })
+        },
+        /** Front/back view is a setting of this teacher's device (not shared with the other teachers). */
+        async loadSeatView() {
+            const local = await window.ipcRenderer.invoke('course-local', this.course.id)
+            this.seatView = local?.view || 'front'
+        },
+        async setSeatView(view) {
+            this.seatView = view
+            await window.ipcRenderer.invoke('course-set-local', { id: this.course.id, patch: { view } })
+        },
+        async saveSeating(plan) {
+            this.seating = plan
+            this.seatingDirty = true   // keep the local change until the next poll brings it back
+            await this.api('setSeating', { servername: this.servername, seating: plan })
+            this.seatingDirty = false
         },
         alarmFor(student) {
             return alarmFor(student, this.now)

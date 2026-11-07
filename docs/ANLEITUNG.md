@@ -75,6 +75,16 @@ Findet die Schüler-App die Unterrichtseinheit nicht (manche WLANs blockieren di
    die Internetsperre aktiv ist. Startet jemand Next-Class neu, muss er **anklopfen** und wird erst nach **Einlassen**
    wieder verbunden. Bleibt die App offen (z. B. kurzer WLAN-Aussetzer), geht es von selbst weiter.
 
+### Sitzplan
+
+- Im Dashboard eines Kurses oben **Sitzplan** wählen (statt **Kacheln**).
+- **⚙ Raster:** Reihen und Spalten (z. B. 7 × 6); ein Klick auf eine Spaltennummer macht sie zum **Gang**.
+- Schülerinnen und Schüler aus **Nicht zugeordnet** auf einen Platz ziehen; sie rasten ein. Auf einen besetzten
+  Platz gezogen, tauschen die beiden. Zurück nach „Nicht zugeordnet“ ziehen entfernt die Zuordnung.
+- **⇅ Ansicht von vorne / von hinten** spiegelt den Plan (Tafel unten bzw. oben). Diese Einstellung gilt nur auf dem
+  eigenen Gerät; der Sitzplan selbst ist für alle Lehrkräfte des Kurses gleich und bleibt für die nächsten Stunden.
+- Farben: grün = nimmt teil, orange = online, aber nicht beigetreten, grau = offline, rot = Alarm.
+
 ### Kurse (wiederkehrender Unterricht)
 
 - Im Dashboard eines Kurses stehen alle eingeschriebenen Schülerinnen und Schüler; wer fehlt, steht grau als „offline“ da.

@@ -267,5 +267,22 @@
       "offline": "Verbindung verloren!",
       "firewall-only": "nur noch die Internetsperre aktiv – App nicht erreichbar!"
     }
+  },
+  "seating": {
+    "title": "Sitzplan",
+    "tiles": "Kacheln",
+    "viewfront": "Ansicht von vorne",
+    "viewback": "Ansicht von hinten",
+    "layout": "Raster",
+    "rows": "Reihen",
+    "cols": "Spalten",
+    "aislehint": "Klick auf eine Spaltennummer macht sie zum Gang.",
+    "aisletoggle": "Gang ein/aus",
+    "board": "Tafel",
+    "unassigned": "Nicht zugeordnet",
+    "participating": "nimmt teil",
+    "notjoined": "online – nicht beigetreten",
+    "offline": "offline",
+    "alarm": "Alarm"
   }
 }

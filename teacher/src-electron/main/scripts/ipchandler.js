@@ -31,6 +31,7 @@ import CourseStore, { CourseStore as CourseStoreClass, sharedCourse, lessonEnd }
 import { sessionNameFor } from '../../../../shared/courseRules.js';
 import { cleanPersonName, uniqueName } from '../../../../shared/studentNames.js';
 import { isNewStudent } from '../../../../shared/enrollment.js';
+import { normalizeSeating } from '../../../../shared/seating.js';
 import { sessionOps } from './sessionOps.js';
 import { resolveEntries, entryFromRunningApp } from '../../../../shared/appCatalog.js';
 
@@ -392,7 +393,7 @@ class IpcHandler {
     coursePresets(session) {
         const c = session?.courseId && CourseStore.get(session.courseId);
         if (!c) return null;
-        return { id: c.id, name: c.name, templateId: c.templateId, netExceptions: c.netExceptions, time: c.time, lessonEnd: lessonEnd(c.time, session.startedAt || Date.now()) };
+        return { id: c.id, name: c.name, templateId: c.templateId, netExceptions: c.netExceptions, time: c.time, lessonEnd: lessonEnd(c.time, session.startedAt || Date.now()), seating: c.seating || null };
     }
 
     /** Teacher names announced in the beacon (course tiles of students and teachers). */
@@ -519,6 +520,15 @@ class IpcHandler {
             if (patch?.folder !== undefined) allowed.folder = patch.folder ? String(patch.folder) : '';
             if (patch?.view !== undefined) allowed.view = patch.view === 'back' ? 'back' : 'front';
             return CourseStore.setLocal(id, allowed);
+        });
+        ipcMain.handle('course-local', (_e, id) => CourseStore.local(id));
+        /** Seating plan of the course (shared with the other teachers of the course). */
+        this.op('setSeating', (_e, { servername, seating } = {}) => {
+            const session = this.session(servername);
+            const course = session?.courseId && CourseStore.get(session.courseId);
+            if (!course) return { status: 'error' };
+            CourseStore.patch(course.id, { seating: normalizeSeating(seating) });
+            return { status: 'success' };
         });
         ipcMain.handle('course-remove-teacher', (_e, { id, name } = {}) => CourseStore.removeTeacher(id, name));
         ipcMain.handle('course-delete', (_e, id) => CourseStore.remove(id));

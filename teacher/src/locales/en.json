@@ -267,5 +267,22 @@
       "offline": "lost the connection!",
       "firewall-only": "only the internet lock is left – app not reachable!"
     }
+  },
+  "seating": {
+    "title": "Seating plan",
+    "tiles": "Tiles",
+    "viewfront": "View from the front",
+    "viewback": "View from the back",
+    "layout": "Grid",
+    "rows": "Rows",
+    "cols": "Columns",
+    "aislehint": "Click a column number to make it an aisle.",
+    "aisletoggle": "Aisle on/off",
+    "board": "Board",
+    "unassigned": "Not assigned",
+    "participating": "taking part",
+    "notjoined": "online – not joined",
+    "offline": "offline",
+    "alarm": "Alarm"
   }
 }
