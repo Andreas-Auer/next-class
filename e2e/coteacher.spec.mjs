@@ -5,6 +5,17 @@ import { test, expect, _electron as electron } from '@playwright/test';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+
+/** Crash an app hard. On Windows SIGKILL left the Electron main process running: end the whole process tree. */
+function killHard(app) {
+  const pid = app.process().pid;
+  if (process.platform === 'win32') {
+    try { execFileSync('taskkill', ['/F', '/T', '/PID', String(pid)], { stdio: 'ignore' }); } catch { /* already gone */ }
+  } else {
+    app.process().kill('SIGKILL');
+  }
+}
 
 const repoRoot = path.join(import.meta.dirname, '..');
 const electronMain = 'dist/electron/UnPackaged/electron-main.js';
@@ -208,7 +219,7 @@ test('host app crashes: co-teacher takes over, student reconnects, lock stays', 
     });
 
     await test.step('host crashes -> co-teacher becomes host', async () => {
-      hostApp.process().kill('SIGKILL');
+      killHard(hostApp);
       hostApp = null;
       await expect(co.locator('.swal2-title')).toContainText('leitest jetzt', { timeout: 60_000 });
       await co.locator('.swal2-confirm').click();
