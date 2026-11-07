@@ -101,6 +101,23 @@ router.post('/coursejoin', (req, res) => {
     return res.send({ status: 'success', token, course: sharedCourse(CourseStore.get(courseId)) });
 });
 
+/**
+ * Course sync without a lesson together: another teacher app of the course fetches the current
+ * course definition. The caller proves that it knows the course secret (HMAC over a fresh nonce).
+ */
+router.post('/coursesync', (req, res) => {
+    const { courseId, nonce, proof } = req.body || {};
+    const own = typeof courseId === 'string' ? CourseStore.get(courseId) : null;
+    if (!own || typeof nonce !== 'string' || nonce.length < 16 || usedNonces.has(nonce)) return res.send({ status: 'error', code: 'NOT_AUTHORIZED' });
+    const expected = CourseStoreClass.proof(own.secret, nonce);
+    if (typeof proof !== 'string' || proof.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(proof), Buffer.from(expected))) {
+        return res.send({ status: 'error', code: 'NOT_AUTHORIZED' });
+    }
+    usedNonces.set(nonce, Date.now());
+    for (const [n, at] of usedNonces) if (Date.now() - at > 10 * 60 * 1000) usedNonces.delete(n);
+    return res.send({ status: 'success', course: sharedCourse(own) });
+});
+
 /** A co-teacher that already belongs to the session (same token) connects to the new host after a failover. */
 router.post('/rejoin', (req, res) => {
     const session = config.examServerList[req.body?.servername];

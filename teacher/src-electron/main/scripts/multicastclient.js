@@ -85,6 +85,7 @@ class MulticastClient {
      * receives messages and stores new exam instances in this.examServerList[]
      */
     messageReceived (message, rinfo) {
+        if (this.onPacket?.(message, rinfo)) return   // course sync announcement (courseSync.js)
         let serverInfo
         try { serverInfo = JSON.parse(String(message)) } catch { return }   // ignore foreign or broken packets
         if (!serverInfo || typeof serverInfo.servername !== 'string' || !serverInfo.id) return

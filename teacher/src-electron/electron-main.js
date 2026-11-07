@@ -32,6 +32,7 @@ import multicastClient from './main/scripts/multicastclient.js';
 import WindowHandler from './main/scripts/windowhandler.js';
 import IpcHandler from './main/scripts/ipchandler.js';
 import CoTeacherClient from './main/scripts/coTeacherClient.js';
+import CourseSync from './main/scripts/courseSync.js';
 import TeacherProfile from './main/scripts/teacherProfile.js';
 import CourseStore, { sharedCourse } from './main/scripts/courseStore.js';
 
@@ -204,6 +205,8 @@ app.whenReady().then(()=>{
     
     if (config.hostip == "127.0.0.1") { config.hostip = false }
     if (config.hostip) { multicastClient.init(config.gateway)  } //multicast client only tracks other exam instances on the network
+    multicastClient.onPacket = (message, rinfo) => CourseSync.onPacket(message, rinfo)
+    CourseSync.init(config)   // courses of all teachers stay in sync while their apps run in the same network
     powerSaveBlocker.start('prevent-display-sleep')
 
     WindowHandler.createWindow()

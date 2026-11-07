@@ -37,6 +37,7 @@ export { cleanCourseName, newPin, cleanTime, lessonEnd, sharedCourse } from '../
 class CourseStore {
     constructor() {
         this.data = null;
+        this.onChange = null;
     }
 
     file() {
@@ -61,6 +62,7 @@ class CourseStore {
         } catch (e) {
             log.error(`courseStore @ save: ${e.message}`);
         }
+        this.onChange?.();   // course sync announces the new version
     }
 
     get(id) {

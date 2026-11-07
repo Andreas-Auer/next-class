@@ -21,7 +21,13 @@ async function shot(page, name) {
 async function getAppWindow(app) {
   await app.firstWindow();
   await expect.poll(() => app.windows().some((p) => p.url().startsWith('file:')), { timeout: 30_000 }).toBe(true);
-  return app.windows().find((p) => p.url().startsWith('file:'));
+  const page = app.windows().find((p) => p.url().startsWith('file:'));
+  // devices with several networks ask once which one to use - possibly only after a few seconds
+  // (seen on Windows CI runners): confirm the suggested network whenever the dialog shows up
+  await page.addLocatorHandler(page.locator('.swal2-popup').filter({ has: page.locator('select.swal2-select') }), async (dialog) => {
+    await dialog.locator('.swal2-confirm').click();
+  });
+  return page;
 }
 
 /** First start of a teacher app: enter the name once (the submission folder keeps its default). */
@@ -112,6 +118,19 @@ test('course: create, start with presets, second teacher joins once with code an
       await expect(b.locator('[data-e2e="coteacher-leave"]')).toBeVisible({ timeout: 15_000 });   // no approval needed
       await expect(b.locator('[data-e2e="teacher-Herr Auer"]')).toBeVisible({ timeout: 10_000 });
       await expect(a.locator('[data-e2e="teacher-Frau Huber"]')).toBeVisible({ timeout: 10_000 });
+    });
+
+    await test.step('B changes the course without a lesson together: A gets the change by itself', async () => {
+      await b.locator('[data-e2e="coteacher-leave"]').click();
+      await b.locator('[data-e2e="course-edit-BP-KU"]').click();
+      const dlg = b.locator('[data-e2e="course-settings"]');
+      await dlg.locator('[data-e2e="course-start"]').fill('08:00');
+      await dlg.locator('[data-e2e="course-end"]').fill('09:40');
+      await dlg.locator('[data-e2e="course-save"]').click();
+      await expect(b.locator('[data-e2e="course-BP-KU"]')).toContainText('08:00 – 09:40');
+      // A is not in a lesson with B any more: the course sync on the LAN brings the change over
+      const aCourses = path.join(profileRoot, 'a', 'courses.json');
+      await expect.poll(async () => (await fs.readFile(aCourses, 'utf8').catch(() => '')).includes('09:40'), { timeout: 40_000 }).toBe(true);
     });
   } finally {
     for (const app of [bApp, aApp]) {
