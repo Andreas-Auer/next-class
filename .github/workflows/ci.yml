@@ -95,9 +95,10 @@ jobs:
       - name: Lock, check, unlock (Windows, runner is admin)
         if: runner.os == 'Windows'
         working-directory: helper
+        shell: cmd
         env:
           NC_REAL_FIREWALL: '1'
-        run: ./fwtest.exe -test.run TestRealFirewall -test.v
+        run: fwtest.exe -test.run TestRealFirewall -test.v
       - name: Lock, check, unlock (macOS / Linux, as root)
         if: runner.os != 'Windows'
         working-directory: helper
