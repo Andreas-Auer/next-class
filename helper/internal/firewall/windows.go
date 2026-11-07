@@ -104,7 +104,8 @@ Write-Output "$r $p"`)
 	if disabled > 0 {
 		return false, "firewall-disabled"
 	}
-	if rules < w.expectedRules {
+	// without an Apply in this process, at least the IPv4 block rule must exist
+	if rules < max(w.expectedRules, 1) {
 		return false, "rules-missing"
 	}
 	return true, ""

@@ -82,6 +82,12 @@ func TestWindowsCheckDetectsDisabledFirewallAndMissingRules(t *testing.T) {
 	if ok, p := w.Check(); ok || p != "rules-missing" {
 		t.Errorf("got %v %q, want rules-missing", ok, p)
 	}
+	// helper restarted (no Apply in this process) and no rules present
+	fresh := &Windows{}
+	fresh.Run, _ = recorder(map[string]string{"powershell.exe": "0 0"}, nil)
+	if ok, p := fresh.Check(); ok || p != "rules-missing" {
+		t.Errorf("fresh: got %v %q, want rules-missing", ok, p)
+	}
 }
 
 func TestPFRulesOrderAndContent(t *testing.T) {
