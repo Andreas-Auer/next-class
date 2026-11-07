@@ -232,6 +232,13 @@ class IpcHandler {
 
         ipcMain.handle('profile-get', () => StudentProfile.view());
 
+        /** The student removes a course from "Meine Kurse" (e.g. one the teachers deleted). */
+        ipcMain.handle('course-forget', (event, id) => {
+            if (!this.fromMainWindow(event) || typeof id !== 'string') return { status: 'error' };
+            StudentProfile.forgetCourse(id);
+            return { status: 'success', profile: StudentProfile.view() };
+        });
+
         /** Download material of a task to Downloads/Next-Class/<task folder>/. */
         ipcMain.handle('download-material', async (event, { taskId, materialId } = {}) => {
             if (!this.fromMainWindow(event)) return { status: 'error' };

@@ -21,7 +21,13 @@ async function shot(page, name) {
 async function getAppWindow(app) {
   await app.firstWindow();
   await expect.poll(() => app.windows().some((p) => p.url().startsWith('file:')), { timeout: 30_000 }).toBe(true);
-  return app.windows().find((p) => p.url().startsWith('file:'));
+  const page = app.windows().find((p) => p.url().startsWith('file:'));
+  // devices with several networks ask once which one to use - possibly only after a few seconds
+  // (seen on Windows CI runners): confirm the suggested network whenever the dialog shows up
+  await page.addLocatorHandler(page.locator('.swal2-popup').filter({ has: page.locator('select.swal2-select') }), async (dialog) => {
+    await dialog.locator('.swal2-confirm').click();
+  });
+  return page;
 }
 
 /** First start of a teacher app: enter the name once (the submission folder keeps its default). */
@@ -130,6 +136,17 @@ test('course enrollment: first lesson automatic, then automatic rejoin and knock
       await t.locator('[data-e2e="knock-admit-Max Muster"]').click();
       await expect(s2.locator('[data-e2e="connected-card"]')).toBeVisible({ timeout: 20_000 });
       await expect(card('Max Muster').locator('[data-e2e="badge-new"]')).toBeVisible({ timeout: 20_000 });
+    });
+
+    await test.step('after the lesson Max removes the course from "Meine Kurse"', async () => {
+      await t.locator('[data-e2e="session-end"]').click();
+      await t.locator('.swal2-confirm').click();
+      await expect(s2.locator('[data-e2e="connected-card"]')).toBeHidden({ timeout: 40_000 });
+      await expect(s2.locator('[data-e2e="mycourse-remove-BP-KU"]')).toBeVisible({ timeout: 20_000 });   // only when not live
+      await s2.locator('[data-e2e="mycourse-remove-BP-KU"]').click();
+      await s2.locator('.swal2-confirm').click();
+      await expect(s2.locator('[data-e2e="mycourse-BP-KU"]')).toHaveCount(0);
+      await expect(s1.locator('[data-e2e="mycourse-BP-KU"]')).toBeVisible();   // other devices keep it
     });
   } finally {
     for (const app of [s2App, s1App, tApp]) {

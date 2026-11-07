@@ -71,6 +71,8 @@
     "netlockinstalled": "The internet lock is set up.",
     "netlockinstallfailed": "The setup did not work.",
     "mycourses": "My courses",
+    "removecourse": "Remove course",
+    "removecourseconfirm": "Remove “{name}” from “My courses”? You can join again later with the PIN.",
     "live": "live",
     "notlive": "not available",
     "signedinas": "Signed in as",

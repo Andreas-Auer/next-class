@@ -28,6 +28,8 @@ import { app } from 'electron';
 import log from 'electron-log';
 import { cleanPersonName, cleanClassName, displayName } from '../../../../shared/studentNames.js';
 
+const COURSE_FORGET_AFTER_MS = 365 * 24 * 60 * 60 * 1000;
+
 class StudentProfile {
     constructor() {
         this.data = null;
@@ -46,9 +48,10 @@ class StudentProfile {
             lastName: cleanPersonName(parsed.lastName),
             className: cleanClassName(parsed.className),
             deviceKey: /^[0-9a-f]{64}$/.test(parsed.deviceKey || '') ? parsed.deviceKey : crypto.randomBytes(32).toString('hex'),
-            courses: Array.isArray(parsed.courses) ? parsed.courses.filter((c) => c?.id && c?.pin) : [],
+            // a course not seen for a year was most likely deleted by the teachers (the device is never told)
+            courses: Array.isArray(parsed.courses) ? parsed.courses.filter((c) => c?.id && c?.pin && !(Date.now() - (Number(c.lastSeen) || Date.now()) > COURSE_FORGET_AFTER_MS)) : [],
         };
-        if (!parsed.deviceKey) this.save();
+        if (!parsed.deviceKey || this.data.courses.length !== (parsed.courses || []).length) this.save();
         return this.data;
     }
 
@@ -109,7 +112,7 @@ class StudentProfile {
         this.save();
     }
 
-    /** The teacher removed this device from the course. */
+    /** The teacher removed this device from the course, or the student removed the course from "Meine Kurse". */
     forgetCourse(id) {
         const d = this.load();
         d.courses = d.courses.filter((c) => c.id !== id);

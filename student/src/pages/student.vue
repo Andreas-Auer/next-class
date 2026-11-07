@@ -145,7 +145,10 @@
                     <h5>{{ $t('student.mycourses') }}</h5>
                     <div class="d-flex flex-wrap gap-2 mb-4">
                         <div v-for="c in profile.courses" :key="c.id" class="border bg-white rounded p-3" style="width: 220px;" :data-e2e="`mycourse-${c.name}`">
-                            <div class="fs-5 fw-bold text-truncate" :title="c.name">{{ c.name }}</div>
+                            <div class="d-flex align-items-start">
+                                <div class="fs-5 fw-bold text-truncate me-auto" :title="c.name">{{ c.name }}</div>
+                                <button v-if="!liveBeacon(c)" class="btn btn-sm btn-link text-secondary p-0 ms-2" :title="$t('student.removecourse')" :data-e2e="`mycourse-remove-${c.name}`" @click="forgetCourse(c)">✕</button>
+                            </div>
                             <div class="small text-secondary text-truncate">{{ courseTeachers(c) }}</div>
                             <div v-if="liveBeacon(c)" class="small fw-semibold mt-1" style="color:#198754;" :data-e2e="`mycourse-live-${c.name}`">● {{ $t('student.live') }}</div>
                             <div v-else class="small mt-1" style="color:#6c757d;">● {{ $t('student.notlive') }}</div>
@@ -300,6 +303,18 @@ export default {
         async saveProfile() {
             const r = await window.ipcRenderer.invoke('profile-set-name', JSON.parse(JSON.stringify(this.pf)))
             if (r.status === 'success') { this.profile = r.profile; this.username = r.profile.name }
+        },
+        async forgetCourse(c) {
+            const result = await this.$swal.fire({
+                title: this.$t('student.removecourse'),
+                text: this.$t('student.removecourseconfirm', { name: c.name }),
+                icon: 'question',
+                showCancelButton: true,
+                cancelButtonText: this.$t('general.cancel'),
+            })
+            if (!result.isConfirmed) return
+            const r = await window.ipcRenderer.invoke('course-forget', c.id)
+            if (r?.profile) this.profile = r.profile
         },
         courseTeachers(c) {
             return (this.liveBeacon(c)?.teachers?.length ? this.liveBeacon(c).teachers : c.teachers || []).join(', ')

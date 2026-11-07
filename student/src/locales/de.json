@@ -71,6 +71,8 @@
     "netlockinstalled": "Die Internetsperre ist eingerichtet.",
     "netlockinstallfailed": "Die Einrichtung hat nicht geklappt.",
     "mycourses": "Meine Kurse",
+    "removecourse": "Kurs entfernen",
+    "removecourseconfirm": "„{name}“ aus „Meine Kurse“ entfernen? Mit der PIN kannst du später wieder beitreten.",
     "live": "live",
     "notlive": "nicht verfügbar",
     "signedinas": "Angemeldet als",
