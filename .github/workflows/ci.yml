@@ -39,9 +39,17 @@ jobs:
       - run: npm test
 
   e2e:
-    name: End-to-end tests (macOS)
-    runs-on: macos-latest
+    name: End-to-end tests (${{ matrix.name }})
     needs: unit
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+          - name: Windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -59,7 +67,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-test-results
+          name: e2e-test-results-${{ matrix.name }}
           path: test-results/
           retention-days: 7
 
