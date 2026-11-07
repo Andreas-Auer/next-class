@@ -104,6 +104,46 @@ jobs:
         working-directory: helper
         run: sudo NC_REAL_FIREWALL=1 ./fwtest.exe -test.run TestRealFirewall -test.v
 
+  applock:
+    # Starts harmless programs on throw-away runners and lets the program lock find and close
+    # them with the real process list (Windows, macOS, Linux on a virtual X11 screen).
+    name: Program lock (${{ matrix.name }})
+    needs: unit
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+          - name: macOS
+            os: macos-latest
+          - name: Linux
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm install
+        working-directory: student
+      - name: Virtual screen with window manager
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q xvfb openbox wmctrl xterm
+          Xvfb :99 -screen 0 1280x800x24 &
+          sleep 2
+          DISPLAY=:99 openbox &
+          sleep 2
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+      - name: Find and close programs
+        working-directory: student
+        shell: bash
+        env:
+          NC_REAL_APPLOCK: '1'
+        run: node --test tests/real/applock.real.mjs
+
   build:
     name: Installers (${{ matrix.name }})
     needs: unit
