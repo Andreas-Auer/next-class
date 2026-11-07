@@ -105,9 +105,10 @@ while ($true) {
   Write-Output ("NCSNAP " + (ConvertTo-Json -InputObject @($list) -Compress))
   Start-Sleep -Seconds 2
 }`;
-    winProc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', '-'], { windowsHide: true });
-    winProc.stdin.write(script);
-    winProc.stdin.end();
+    // -EncodedCommand (UTF-16LE base64): a multi-line loop sent via "-Command -" (stdin) is never run
+    const encoded = Buffer.from(script, 'utf16le').toString('base64');
+    winProc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded], { windowsHide: true });
+    winProc.stderr.on('data', (chunk) => log.warn(`processList @ windows: ${chunk.toString().trim().slice(0, 300)}`));
     winProc.stdout.on('data', (chunk) => {
         winBuffer += chunk.toString();
         let idx;
