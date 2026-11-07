@@ -29,7 +29,7 @@ async function getAppWindow(app) {
   const page = app.windows().find((p) => p.url().startsWith('file:'));
   // devices with several networks ask once which one to use - possibly only after a few seconds
   // (seen on Windows CI runners): confirm the suggested network whenever the dialog shows up
-  await page.addLocatorHandler(page.locator('.swal2-popup').filter({ has: page.locator('select.swal2-select') }), async (dialog) => {
+  await page.addLocatorHandler(page.locator('.swal2-popup').filter({ has: page.locator('.swal2-title', { hasText: /^(Netzwerk auswählen|Select network)$/ }) }), async (dialog) => {
     await dialog.locator('.swal2-confirm').click();
   });
   return page;
