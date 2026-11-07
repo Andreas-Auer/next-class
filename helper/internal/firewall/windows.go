@@ -5,6 +5,7 @@ package firewall
 
 import (
 	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -37,8 +38,14 @@ func psList(items []string) string {
 
 // WindowsScript renders the PowerShell script that installs the rules; returns script and rule count.
 func WindowsScript(plan netrules.Plan) (string, int) {
+	// DNS servers are left out of the main block rule (block rules always win in Windows
+	// Firewall, so port 53 could not be opened again); they get their own rules below.
+	open := append([]netip.Prefix{}, plan.AllowV4...)
+	for _, a := range plan.DNSv4 {
+		open = append(open, netip.PrefixFrom(a, 32))
+	}
 	var ranges []string
-	for _, r := range netrules.ComplementV4(plan.AllowV4) {
+	for _, r := range netrules.ComplementV4(netrules.Merge(open)) {
 		ranges = append(ranges, r.String())
 	}
 	var b strings.Builder
@@ -83,7 +90,8 @@ func (w *Windows) Apply(plan netrules.Plan) error {
 }
 
 func (w *Windows) Remove() error {
-	_, err := w.ps("Remove-NetFirewallRule -Group " + psQuote(winGroup) + " -ErrorAction SilentlyContinue\n")
+	// "exit 0": PowerShell would otherwise exit with 1 when there was nothing to remove
+	_, err := w.ps("Remove-NetFirewallRule -Group " + psQuote(winGroup) + " -ErrorAction SilentlyContinue\nexit 0\n")
 	return err
 }
 

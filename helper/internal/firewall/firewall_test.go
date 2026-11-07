@@ -46,7 +46,8 @@ func TestWindowsScriptBlocksComplementAndIPv6(t *testing.T) {
 	for _, want := range []string{
 		"Remove-NetFirewallRule -Group 'NextClass'",
 		"-Name 'NextClass-Block-IPv4'",
-		"'1.0.0.0-10.19.255.255'",    // everything below the allowed school network
+		"'1.0.0.0-8.8.8.7'",           // everything below the DNS server ...
+		"'8.8.8.9-10.19.255.255'",     // ... and from it up to the allowed school network
 		"'10.21.0.0-126.255.255.255'", // continues right after it (127/8 loopback stays allowed)
 		"-Name 'NextClass-Block-IPv6'",
 		"'2000::/3'",
@@ -56,6 +57,10 @@ func TestWindowsScriptBlocksComplementAndIPv6(t *testing.T) {
 		if !strings.Contains(script, want) {
 			t.Errorf("script misses %q\n%s", want, script)
 		}
+	}
+	// the DNS server is not in the main block rule (it would block port 53, block rules win)
+	if strings.Contains(script, "'1.0.0.0-10.19.255.255'") {
+		t.Errorf("main block rule must leave out the DNS server 8.8.8.8\n%s", script)
 	}
 	if strings.Contains(script, "'10.20.") {
 		t.Error("the school network must not appear in a block rule")
