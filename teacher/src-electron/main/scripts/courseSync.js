@@ -56,7 +56,9 @@ class CourseSync {
         const courses = CourseStore.load().courses;
         if (!courses.length) return;
         const msg = Buffer.from(JSON.stringify(buildAnnouncement(courses, { instance: this.instance, apiPort: this.config.serverApiPort })));
-        const done = (e) => { if (e) log.warn(`courseSync @ announce: ${e.message}`); };
+        const done = (e) => {   // log a failing route once, not every 15 s (e.g. no multicast route)
+            if (e && !this.warned) { this.warned = true; log.warn(`courseSync @ announce: ${e.message}`); }
+        };
         this.socket.send(msg, 0, msg.length, this.config.multicastServerClientPort, this.config.multicastServerAdrr, done);
         // also as subnet broadcast, like the lesson beacons: school networks often swallow multicast
         const broadcast = getSubnetBroadcast(this.config.hostip);

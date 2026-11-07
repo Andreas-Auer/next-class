@@ -203,6 +203,8 @@ test('host app crashes: co-teacher takes over, student reconnects, lock stays', 
 
       await host.locator('[data-e2e="lock-screens"]').click();
       await expect.poll(lockVisible, { timeout: 20_000 }).toBe(true);
+      // the co-teacher's copy of the session (refreshed every 5 s) must contain the lock before the crash
+      await expect(co.locator('[data-e2e="lock-screens"]')).toHaveClass(/btn-warning/, { timeout: 15_000 });
     });
 
     await test.step('host crashes -> co-teacher becomes host', async () => {
