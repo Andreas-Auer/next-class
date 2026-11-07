@@ -25,6 +25,7 @@ import { STUDENT_OFFLINE_AFTER_MS, addEvent } from '../../server/src/routes/serv
 import i18n from '../../../src/locales/locales.js';
 import crypto from 'crypto';
 import AppLockStore from './applockStore.js';
+import TeacherProfile from './teacherProfile.js';
 import { sessionOps } from './sessionOps.js';
 import { resolveEntries, entryFromRunningApp } from '../../../../shared/appCatalog.js';
 
@@ -115,6 +116,7 @@ class IpcHandler {
             const session = new MulticastServer();
             session.init(servername, pin);
             session.teacherCode = this.config.development ? '222222' : String(crypto.randomInt(100000, 1000000));
+            session.teacherName = TeacherProfile.name() || t('coteacher.you');
             session.coTeachers = [];          // { name, token, ip, joinedAt, lastSeen }
             session.pendingJoins = new Map(); // requestId -> { name, ip, at, status: pending|approved|denied, token? }
             session.serverstatus = { screenslocked: false, screenshotinterval: DEFAULT_SCREENSHOT_INTERVAL_S, idlethreshold: DEFAULT_IDLE_THRESHOLD_S };
@@ -276,13 +278,13 @@ class IpcHandler {
         });
 
         // ---- co-teachers -------------------------------------------------------------
-        /** All teachers of a session (host first). Co-teachers count as connected for 15 s after their last call. */
+        /** All teachers of a session (the one leading it first). Others count as connected for 15 s after their last call. */
         this.op('teacherList', (_e, servername) => {
             const session = this.session(servername);
             if (!session) return [];
             const now = Date.now();
             return [
-                { name: t('coteacher.host'), host: true, online: true },
+                { name: session.teacherName || t('coteacher.you'), leading: true, online: true },
                 ...(session.coTeachers || []).map((c) => ({ name: c.name, ip: c.ip, joinedAt: c.joinedAt, online: now - c.lastSeen < 15000 })),
             ];
         });
@@ -356,10 +358,11 @@ class IpcHandler {
         session.studentList = (replica.studentList || []).map((st) => ({ ...st, timestamp: 0, imageurl: false, screenlock: false, status: {} }));
         const now = Date.now();
         session.coTeachers = (replica.coTeachers || []).filter((c) => c.token !== ownToken).map((c) => ({ ...c, lastSeen: now }));
+        session.teacherName = TeacherProfile.name() || t('coteacher.you');
         session.pendingJoins = new Map();
         session.events = replica.events || [];
         this.config.examServerList[replica.servername] = session;
-        addEvent(session, t('coteacher.you'), 'host-failover');
+        addEvent(session, session.teacherName, 'host-failover');
         log.warn(`ipchandler @ importSession: took over "${replica.servername}" (epoch ${session.serverinfo.epoch})`);
         return true;
     }

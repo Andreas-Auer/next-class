@@ -8,10 +8,12 @@ import { createRouter as _createRouter, createWebHashHistory } from 'vue-router'
 import startserver from '../pages/startserver.vue'
 import dashboard from '../pages/dashboard.vue'
 import notfound from '../pages/notfound.vue'
+import settings from '../pages/settings.vue'
 
 const routes = [
     { path: '/', name: 'startserver', component: startserver },
     { path: '/dashboard/:servername', name: 'dashboard', component: dashboard },
+    { path: '/settings', name: 'settings', component: settings },
     { path: '/:pathMatch(.*)*', component: notfound },
 ]
 

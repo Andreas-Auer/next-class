@@ -36,6 +36,16 @@ function attachDiagnostics(label, app, page) {
 }
 
 /** Confirm the "select network" dialog if this machine has several interfaces. */
+/** First start of a teacher app: enter the name once (the submission folder keeps its default). */
+async function completeWelcome(page, name) {
+  const welcome = page.locator('[data-e2e="welcome"]');
+  await expect(welcome).toBeVisible({ timeout: 15_000 });
+  await expect(welcome.locator('[data-e2e="folder-path"]')).toContainText('Next-Class Abgaben');
+  await welcome.locator('[data-e2e="welcome-name"]').fill(name);
+  await welcome.locator('[data-e2e="welcome-save"]').click();
+  await expect(page.locator('[data-e2e="session-name"]')).toBeVisible();
+}
+
 async function confirmInterfacePicker(page) {
   const dialog = page.locator('.swal2-popup').filter({ has: page.locator('select.swal2-select') });
   if (await dialog.isVisible({ timeout: 4_000 }).catch(() => false)) {
@@ -80,6 +90,7 @@ test('student joins with PIN, reconnects, gets locked and unlocked, then leaves'
       teacher = await getAppWindow(teacherApp);
       attachDiagnostics('TEACHER', teacherApp, teacher);
       await confirmInterfacePicker(teacher);
+      await completeWelcome(teacher, 'Herr Auer');
       await teacher.locator('[data-e2e="session-name"]').fill(sessionName);
       await teacher.locator('[data-e2e="session-start"]').click();
       await expect(teacher.locator('[data-e2e="session-pin"]')).toHaveText(/^\d{4}$/, { timeout: 15_000 });

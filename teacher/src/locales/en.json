@@ -142,24 +142,24 @@
       "program": "program lock",
       "firewall": "firewall changed",
       "netlock-problem": "internet lock not effective",
-      "teacher-joined": "joined as co-teacher",
-      "host-failover": "took over the session (host failed)"
+      "teacher-joined": "joined as teacher",
+      "host-failover": "took over the session (other teacher app failed)"
     }
   },
   "coteacher": {
-    "title": "Co-teacher",
+    "title": "Teacher",
     "teachers": "Teachers",
     "code": "Teacher code",
-    "host": "Teacher (host)",
+    "host": "Teacher",
     "leave": "Leave session",
-    "hostunreachable": "Host not reachable",
+    "hostunreachable": "Other teacher app unreachable",
     "ended": "Session ended",
     "endedtext": "The teacher who started the session ended it or removed you.",
-    "requesttitle": "Co-teacher wants to join",
-    "requesttext": "{name} ({ip}) wants to co-control this session. Allow?",
+    "requesttitle": "Teacher wants to join",
+    "requesttext": "{name} ({ip}) wants to co-teach this session. Allow?",
     "approve": "Allow",
     "deny": "Deny",
-    "join": "Join as co-teacher",
+    "join": "Join as teacher",
     "joinhint": "Team teaching: join another teacher's session. The teacher code is shown on their dashboard.",
     "address": "IP of the other teacher app",
     "search": "Search",
@@ -178,6 +178,26 @@
     "tookovertext": "The host's teacher app was no longer reachable. Your teacher app took over the session; student devices reconnect automatically.",
     "takenover": "Session was taken over",
     "takenovertext": "While your teacher app was unreachable, a co-teacher took over the session ({by}). You can join again as co-teacher.",
-    "newhost": "New host"
+    "newhost": "The session now runs on another teacher app",
+    "noname": "Please enter your name in the settings first."
+  },
+  "profile": {
+    "welcome": "Welcome to Next-Class",
+    "welcometext": "Please enter your name once. Students and other teachers will see it.",
+    "name": "Your name",
+    "nameplaceholder": "Andreas Auer",
+    "folder": "Submission folder",
+    "folderhint": "Next-Class stores your students' submissions here. Each course can have its own folder in the course settings.",
+    "change": "Change …",
+    "open": "Open",
+    "usedefault": "Use default",
+    "default": "Default",
+    "save": "Save",
+    "continue": "Continue",
+    "settings": "Settings",
+    "saved": "Saved",
+    "language": "Language",
+    "back": "Back",
+    "foldermissing": "The folder is not reachable (e.g. network drive not connected)."
   }
 }

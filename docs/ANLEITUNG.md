@@ -37,7 +37,9 @@ Findet die Schüler-App die Unterrichtseinheit nicht (manche WLANs blockieren di
 
 ## 3. Für Lehrkräfte
 
-1. **Next-Class Lehrer** starten, einen Namen eingeben (z. B. `3ahbt-cad`) und **Unterrichtseinheit starten**.
+1. **Next-Class Lehrer** starten. Beim ersten Start einmalig **deinen Namen** eintragen; der **Abgaben-Ordner**
+   ist schon voreingestellt (`Dokumente/Next-Class Abgaben`) und lässt sich jederzeit unter **⚙ Einstellungen** ändern.
+   Dann einen Namen für die Einheit eingeben (z. B. `3ahbt-cad`) und **Unterrichtseinheit starten**.
 2. PIN an die Tafel schreiben. Die Schüler erscheinen als Kacheln mit Live-Bild.
 3. Im Dashboard:
    - **Bildschirme sperren** – alle Bildschirme schwarz („Bitte nach vorne schauen“)
@@ -58,12 +60,13 @@ online geprüft), danach Internet- und Programmsperre aktivieren.
 ### Teamteaching (mehrere Lehrkräfte)
 
 - Die erste Lehrkraft startet die Einheit. Im Dashboard steht der **Lehrer-Code**.
-- Die zweite Lehrkraft öffnet ihre Lehrer-App → **Als Co-Lehrkraft beitreten** (oder Lehrer-IP eingeben),
-  gibt ihren Namen und den Lehrer-Code ein.
-- Die erste Lehrkraft bestätigt mit **Zulassen**. Danach steuern beide gleichberechtigt.
-- Fällt die Lehrer-App der ersten Lehrkraft aus (Akku leer, Laptop zugeklappt), übernimmt nach etwa
-  20 Sekunden automatisch die Co-Lehrkraft. Die Schülergeräte verbinden sich von selbst neu, Sperren bleiben bestehen.
-- Kommt die erste Lehrkraft zurück, tritt sie einfach wieder als Co-Lehrkraft bei.
+- Die zweite Lehrkraft öffnet ihre Lehrer-App → **Als Lehrkraft beitreten** (oder Lehrer-IP eingeben)
+  und gibt den Lehrer-Code ein.
+- Die erste Lehrkraft bestätigt mit **Zulassen**. Danach betreuen beide die Einheit gleichwertig; im Dashboard
+  stehen alle Lehrkräfte mit Namen.
+- Fällt eine Lehrer-App aus (Akku leer, Laptop zugeklappt), führt nach etwa 20 Sekunden automatisch eine andere
+  Lehrer-App die Einheit weiter. Die Schülergeräte verbinden sich von selbst neu, Sperren bleiben bestehen.
+- Kommt die Lehrkraft zurück, tritt sie einfach wieder bei.
 
 ## 4. Wann ist ein Schülergerät wieder frei?
 

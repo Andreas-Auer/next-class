@@ -23,7 +23,11 @@
             <div class="btn btn-light text-start" style="cursor: default;">
                 <img src="/src/assets/img/svg/server.svg" class="me-2" width="16" height="16"> {{ $t('startserver.title') }}
             </div>
+            <button class="btn btn-outline-light text-start mt-2" data-e2e="open-settings" @click="$router.push({ name: 'settings' })">
+                ⚙ {{ $t('profile.settings') }}
+            </button>
             <div class="mt-auto">
+                <div v-if="profile?.name" class="small text-secondary mb-2" data-e2e="profile-name">{{ profile.name }}</div>
                 <button class="btn btn-outline-secondary btn-sm mb-2" @click="toggleLocale">{{ inactiveLocale }}</button><br>
                 <span style="font-size: 0.8em; cursor: pointer;" @click="showCopyleft">
                     <span style="display:inline-block; transform: scaleX(-1);">&copy;</span> {{ config.version }} {{ config.info }}
@@ -31,8 +35,23 @@
             </div>
         </div>
 
+        <!-- first start: name and submission folder, asked once -->
+        <div v-if="profile && !profile.name" class="flex-grow-1 p-4 overflow-auto" style="background-color: #f5f5f5;" data-e2e="welcome">
+            <div class="bg-white border rounded p-4" style="max-width: 560px;">
+                <h4 class="mb-2">{{ $t('profile.welcome') }}</h4>
+                <p class="text-secondary">{{ $t('profile.welcometext') }}</p>
+                <label class="form-label fw-semibold" for="welcome-name">{{ $t('profile.name') }}</label>
+                <input id="welcome-name" v-model="welcomeName" class="form-control mb-3" data-e2e="welcome-name" maxlength="40"
+                       :placeholder="$t('profile.nameplaceholder')" @keyup.enter="saveWelcome">
+                <label class="form-label fw-semibold">{{ $t('profile.folder') }}</label>
+                <FolderField :folder="welcomeFolder || profile.defaultFolder" :is-default="!welcomeFolder" :show-open="false" @update="(f) => welcomeFolder = f" />
+                <p class="text-secondary small mt-1">{{ $t('profile.folderhint') }}</p>
+                <button class="btn btn-success mt-2" data-e2e="welcome-save" :disabled="!welcomeName.trim()" @click="saveWelcome">{{ $t('profile.continue') }}</button>
+            </div>
+        </div>
+
         <!-- Content -->
-        <div class="flex-grow-1 p-4 overflow-auto" style="background-color: #f5f5f5;">
+        <div v-else class="flex-grow-1 p-4 overflow-auto" style="background-color: #f5f5f5;">
             <h3 class="mb-3">{{ $t('startserver.title') }}</h3>
             <p class="text-secondary" style="max-width: 640px;">{{ $t('startserver.intro') }}</p>
 
@@ -78,11 +97,17 @@
 </template>
 
 <script>
+import FolderField from '../components/FolderField.vue'
+
 const NAME_PATTERN = /^[a-z0-9äöüß][a-z0-9äöüß _.-]{0,39}$/
 
 export default {
+    components: { FolderField },
     data() {
         return {
+            profile: null,
+            welcomeName: '',
+            welcomeFolder: '',
             config: window.config || {},
             servername: '',
             starting: false,
@@ -107,7 +132,13 @@ export default {
         clearInterval(this.pollTimer)
     },
     methods: {
+        async saveWelcome() {
+            if (!this.welcomeName.trim()) return
+            const r = await window.ipcRenderer.invoke('profile-set', { name: this.welcomeName, folder: this.welcomeFolder })
+            if (r.status === 'success') this.profile = r.profile
+        },
         async refresh() {
+            if (!this.profile?.name) this.profile = await window.ipcRenderer.invoke('profile-get')
             this.hostip = await window.ipcRenderer.invoke('checkhostip')
             const cfg = await window.ipcRenderer.invoke('getconfigasync')
             this.config = cfg
@@ -152,19 +183,20 @@ export default {
             if (r.status === 'success') this.manualSessions = r.serverlist.map((s) => ({ id: s.id, servername: s.servername, address: s.address }))
             else this.$swal.fire({ title: this.$t('general.error'), text: r.message, icon: 'error' })
         },
-        /** Ask to join as co-teacher, then wait for the host's approval. */
+        /** Ask to join as teacher (own name from the profile), then wait for the other teacher's approval. */
         async coJoin(address, servername) {
+            const name = this.profile?.name
+            if (!name) return this.$swal.fire({ title: this.$t('general.error'), text: this.$t('coteacher.noname'), icon: 'error' })
             const form = await this.$swal.fire({
                 title: this.$t('coteacher.join'),
-                html: `<input id="co-name" class="swal2-input" data-e2e="cojoin-name" placeholder="${this.$t('coteacher.name')}" value="${(localStorage.getItem('next-class-teacher-name') || '').replace(/"/g, '')}">`
+                html: `<div class="small text-secondary mb-1">${this.$t('profile.name')}: <b>${name.replace(/[<>&"]/g, '')}</b></div>`
                     + `<input id="co-code" class="swal2-input" data-e2e="cojoin-code" inputmode="numeric" maxlength="6" placeholder="${this.$t('coteacher.code')}">`,
                 showCancelButton: true,
                 cancelButtonText: this.$t('general.cancel'),
-                preConfirm: () => ({ name: document.getElementById('co-name').value.trim(), code: document.getElementById('co-code').value.trim() }),
+                preConfirm: () => ({ code: document.getElementById('co-code').value.trim() }),
             })
             if (!form.isConfirmed) return
-            const { name, code } = form.value
-            try { localStorage.setItem('next-class-teacher-name', name) } catch { /* private mode */ }
+            const { code } = form.value
             const req = await window.ipcRenderer.invoke('cojoin-request', { address, servername, code, name })
             if (req.status !== 'pending') {
                 const text = req.code && this.$te(`coteacher.errors.${req.code}`) ? this.$t(`coteacher.errors.${req.code}`) : req.message

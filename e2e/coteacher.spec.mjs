@@ -24,6 +24,16 @@ async function getAppWindow(app) {
   return app.windows().find((p) => p.url().startsWith('file:'));
 }
 
+/** First start of a teacher app: enter the name once (the submission folder keeps its default). */
+async function completeWelcome(page, name) {
+  const welcome = page.locator('[data-e2e="welcome"]');
+  await expect(welcome).toBeVisible({ timeout: 15_000 });
+  await expect(welcome.locator('[data-e2e="folder-path"]')).toContainText('Next-Class Abgaben');
+  await welcome.locator('[data-e2e="welcome-name"]').fill(name);
+  await welcome.locator('[data-e2e="welcome-save"]').click();
+  await expect(page.locator('[data-e2e="session-name"]')).toBeVisible();
+}
+
 async function confirmInterfacePicker(page) {
   const dialog = page.locator('.swal2-popup').filter({ has: page.locator('select.swal2-select') });
   if (await dialog.isVisible({ timeout: 4_000 }).catch(() => false)) {
@@ -50,6 +60,7 @@ test('co-teacher joins with code + approval and controls the session', async () 
       hostApp = await launch(teacherMain, 'host', hostPort);
       host = await getAppWindow(hostApp);
       await confirmInterfacePicker(host);
+      await completeWelcome(host, 'Herr Auer');
       await host.locator('[data-e2e="session-name"]').fill(sessionName);
       await host.locator('[data-e2e="session-start"]').click();
       await expect(host.locator('[data-e2e="teacher-code"]')).toHaveText(/^\d{6}$/, { timeout: 15_000 });
@@ -61,31 +72,31 @@ test('co-teacher joins with code + approval and controls the session', async () 
       coApp = await launch(teacherMain, 'co', coPort);
       co = await getAppWindow(coApp);
       await confirmInterfacePicker(co);
+      await completeWelcome(co, 'Frau Huber');
       await co.locator('[data-e2e="cojoin-address"]').fill(`127.0.0.1:${hostPort}`);
       await co.locator('[data-e2e="cojoin-search"]').click();
       const joinButton = co.locator(`[data-e2e="cojoin-${sessionName}"]`).first();
       await expect(joinButton).toBeVisible({ timeout: 15_000 });
 
       await joinButton.click();
-      await co.locator('#co-name').fill('Frau Huber');
       await co.locator('#co-code').fill(teacherCode === '000000' ? '000001' : '000000');
       await co.locator('.swal2-confirm').click();
       await expect(co.locator('.swal2-html-container')).toContainText('Lehrer-Code', { timeout: 10_000 });
       await co.locator('.swal2-confirm').click();
 
       await joinButton.click();
-      await co.locator('#co-name').fill('Frau Huber');
       await co.locator('#co-code').fill(teacherCode);
       await co.locator('.swal2-confirm').click();
       await expect(co.locator('.swal2-title')).toContainText('Bestätigung', { timeout: 10_000 });
     });
 
     await test.step('host approves', async () => {
-      await expect(host.locator('.swal2-title')).toContainText('Co-Lehrkraft', { timeout: 15_000 });
+      await expect(host.locator('.swal2-title')).toContainText('Lehrkraft', { timeout: 15_000 });
       await expect(host.locator('.swal2-html-container')).toContainText('Frau Huber');
       await host.locator('.swal2-confirm').click();
       await expect(co.locator('[data-e2e="coteacher-leave"]')).toBeVisible({ timeout: 15_000 });
       await expect(host.locator('[data-e2e="teacher-Frau Huber"]')).toBeVisible({ timeout: 10_000 });
+      await expect(co.locator('[data-e2e="teacher-Herr Auer"]')).toBeVisible({ timeout: 10_000 });   // equal teachers, listed by name
       await expect(co.locator('[data-e2e="session-pin"]')).toHaveText(pin);
     });
 
@@ -151,6 +162,7 @@ test('host app crashes: co-teacher takes over, student reconnects, lock stays', 
       hostApp = await launch(teacherMain, 'host', hostPort);
       host = await getAppWindow(hostApp);
       await confirmInterfacePicker(host);
+      await completeWelcome(host, 'Herr Auer');
       await host.locator('[data-e2e="session-name"]').fill(sessionName);
       await host.locator('[data-e2e="session-start"]').click();
       await expect(host.locator('[data-e2e="teacher-code"]')).toHaveText(/^\d{6}$/, { timeout: 15_000 });
@@ -160,13 +172,13 @@ test('host app crashes: co-teacher takes over, student reconnects, lock stays', 
       coApp = await launch(teacherMain, 'co', coPort);
       co = await getAppWindow(coApp);
       await confirmInterfacePicker(co);
+      await completeWelcome(co, 'Frau Huber');
       await co.locator('[data-e2e="cojoin-address"]').fill(`127.0.0.1:${hostPort}`);
       await co.locator('[data-e2e="cojoin-search"]').click();
       await co.locator(`[data-e2e="cojoin-${sessionName}"]`).first().click();
-      await co.locator('#co-name').fill('Frau Huber');
       await co.locator('#co-code').fill(teacherCode);
       await co.locator('.swal2-confirm').click();
-      await expect(host.locator('.swal2-title')).toContainText('Co-Lehrkraft', { timeout: 15_000 });
+      await expect(host.locator('.swal2-title')).toContainText('Lehrkraft', { timeout: 15_000 });
       await host.locator('.swal2-confirm').click();
       await expect(co.locator('[data-e2e="coteacher-leave"]')).toBeVisible({ timeout: 15_000 });
 
