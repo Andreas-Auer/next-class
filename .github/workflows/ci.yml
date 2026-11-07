@@ -201,23 +201,18 @@ jobs:
       - run: npm run install:dependencies
       - run: npm run build:helper        # all platforms: the macOS job packages arm64 and x64
 
-      - name: Build student and teacher installers
-        shell: bash
-        run: |
-          for app in student teacher; do
-            for script in ${{ matrix.builds }}; do
-              echo "::group::$app $script"
-              npm --prefix "$app" run "$script"
-              echo "::endgroup::"
-            done
-          done
-
-      - name: Collect installers
+      - name: Build and collect student and teacher installers
         shell: bash
         run: |
           mkdir -p out
           for app in student teacher; do
-            find "$app/dist/electron/Packaged" -maxdepth 1 -type f \( -name '*.msi' -o -name '*.exe' -o -name '*.zip' -o -name '*.dmg' -o -name '*.AppImage' \) -exec cp {} out/ \;
+            for script in ${{ matrix.builds }}; do
+              echo "::group::$app $script"
+              npm --prefix "$app" run "$script"
+              # collect right away: the next build script cleans dist/ (macOS builds arm64, then x64)
+              find "$app/dist/electron/Packaged" -maxdepth 1 -type f \( -name '*.msi' -o -name '*.exe' -o -name '*.zip' -o -name '*.dmg' -o -name '*.AppImage' \) -exec cp {} out/ \;
+              echo "::endgroup::"
+            done
           done
           ls -la out
 
