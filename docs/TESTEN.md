@@ -62,6 +62,14 @@ nie geschlossen – damit beim Entwickeln nichts verloren geht. Echtes Schließe
 installierten App (`npm --prefix student run build:win:msi` bzw. `build:mac:arm64`).
 Zum ersten Ausprobieren in der Klasse den Modus „Nur melden“ wählen und die Meldungen ansehen.
 
+## Automatische Tests bei jedem Push (GitHub Actions)
+
+- Unit-Tests (JavaScript und Go)
+- Ende-zu-Ende-Tests der ganzen Stunde auf **macOS und Windows** (Kurs, Einschreiben, Sperren, Sitzplan im kleinen
+  Fenster 1024 px, Aufgaben, zweite Lehrkraft, Übernahme bei Absturz, Kursabgleich ohne gemeinsame Stunde)
+- Echte Internetsperre und echte Programmsperre auf Windows, macOS und Linux
+- Installer für Windows, macOS und Linux; bei einem Versions-Tag (`v…`) zusätzlich ein Release
+
 ## Bekannte Grenzen
 
 - Die Programmsperre wird bei jedem Push in der CI **echt** geprüft (Job „Program lock“): Editor/TextEdit/xterm
