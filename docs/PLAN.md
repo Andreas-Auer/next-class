@@ -10,10 +10,10 @@ Jeder Schritt bekommt einen eigenen Branch (`step-N-…`) und eine Testanleitung
 | 4 | Inaktivitäts-Anzeige: Bildschirm unverändert, Zähler ab 2 min | erledigt (`step-4-idle`) |
 | 5 | Programmsperre mit Freigabeliste, Vorlagen, Katalog und Vorwarnung (ohne Admin-Rechte) | erledigt (`step-5-applock`); Windows/Linux noch nicht auf echten Geräten getestet |
 | 6 | Hilfsdienst (Go, Einrichtung per Admin-Abfrage aus der Schüler-App, lokale API, Aufräumen beim Start, Endzeit) | erledigt (`step-6-netlock`), Probemodus getestet |
-| 7 | Internetsperre: Windows-Firewall, dazu bereits macOS pf und Linux nftables | erledigt (`step-6-netlock`); **noch nicht auf echten Geräten getestet** |
+| 7 | Internetsperre: Windows-Firewall, dazu bereits macOS pf und Linux nftables | erledigt (`step-6-netlock`); echte Sperre in der CI auf Windows/macOS/Linux geprüft (`step-10-firewall-ci`) |
 | 8 | Ereignisprotokoll (beigetreten, getrennt, App beendet, Programmsperre, Firewall verändert) | erledigt (`step-8-events`) |
 | 9 | Endzeit für beide Sperren (ohne Kontakt + 5 min, max. 4 h, Neustart = frei), nur die sperrende Einheit hebt vorzeitig auf | erledigt (`step-8-events`) |
-| 10 | macOS (pf), danach Linux (nftables) | offen |
+| 10 | macOS (pf), danach Linux (nftables); echter Sperr-Test auf allen drei Systemen in der CI | erledigt (`step-10-firewall-ci`); dabei zwei Windows-Fehler behoben (DNS-Port 53, Prüfung nach Neustart) |
 | 11 | Ausnahmen für die Internetsperre (Lizenzserver, Netzlaufwerke: Name, IP oder Netz) | erledigt (`step-11-exceptions`) |
 | 12 | Co-Lehrkräfte: Beitritt mit Lehrer-Code + Bestätigung, gleichberechtigte Steuerung über den Host, Zustand synchron | erledigt (`step-12-coteachers`) |
 | 13 | Übernahme bei Host-Ausfall: erste Co-Lehrkraft übernimmt nach 20 s, Schüler verbinden sich automatisch neu, Sperren bleiben, alter Host gibt ab | erledigt (`step-13-failover`) |

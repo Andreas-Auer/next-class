@@ -60,14 +60,19 @@ nie geschlossen – damit beim Entwickeln nichts verloren geht. Echtes Schließe
 installierten App (`npm --prefix student run build:win:msi` bzw. `build:mac:arm64`).
 Zum ersten Ausprobieren in der Klasse den Modus „Nur melden“ wählen und die Meldungen ansehen.
 
-## Bekannte Grenzen (Stand Schritt 9)
+## Bekannte Grenzen
 
 - Windows- und Linux-Teile der Programmsperre sind noch nicht auf echten Geräten getestet.
 - Linux mit Wayland: nur die Blockliste (Chat, Spiele …) wird durchgesetzt, keine Freigabeliste.
 - Host-Ausfall ohne Co-Lehrkraft: Niemand übernimmt; die Sperren laufen auf den Schülergeräten bis zur Endzeit (+5 min) weiter.
 - Schüler können die App beenden: Die Lehrkraft sieht „App beendet“; die Internetsperre bleibt (Hilfsdienst),
   die Programmsperre wirkt erst wieder, wenn die App neu gestartet wird.
-- Die Internetsperre ist nur im Probemodus getestet (Regeln werden berechnet, aber nicht gesetzt).
-  Vor dem ersten Klasseneinsatz unbedingt auf je einem Windows-, Mac- und ggf. Linux-Gerät von Hand testen
-  (Tabelle oben). Zum Rückgängigmachen: Neustart, oder `nextclass-helper uninstall` als Administrator.
+- Die Internetsperre wird bei jedem Push in der CI **echt** gesetzt und wieder entfernt – auf frischen
+  Windows-, macOS- und Linux-Rechnern von GitHub (Job „Internet lock“): erlaubtes Netz erreichbar,
+  DNS-Server nur Port 53, alles andere gesperrt, danach wieder alles frei.
+  Nicht geprüft ist dort: echtes Schul-WLAN, Lizenzserver, Netzlaufwerke und der Hilfsdienst als
+  installierter Dienst. Deshalb vor dem ersten Klasseneinsatz trotzdem auf je einem Windows- und
+  Mac-Gerät von Hand testen (Tabelle oben). Zum Rückgängigmachen: Neustart, oder
+  `nextclass-helper uninstall` als Administrator.
+- Den Test selbst nie auf einem normalen Rechner starten (`NC_REAL_FIREWALL=1`): Er ändert die Firewall.
 - Drittanbieter-Firewalls (z. B. Norton) können die Windows-Firewall ersetzen – dann greift die Sperre nicht.
