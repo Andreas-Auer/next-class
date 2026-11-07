@@ -19,7 +19,7 @@ Jeder Schritt bekommt einen eigenen Branch (`step-N-…`) und eine Testanleitung
 | 13 | Übernahme bei Host-Ausfall: erste Co-Lehrkraft übernimmt nach 20 s, Schüler verbinden sich automatisch neu, Sperren bleiben, alter Host gibt ab | erledigt (`step-13-failover`) |
 | 14 | CI (Tests + unsignierte Installer für Windows, macOS, Linux; Release bei Versions-Tag) und Kurzanleitung | erledigt (`step-14-ci`) |
 | 15 | Gleichwertige Lehrkräfte („Lehrkraft“ statt Host/Co), Name und Abgabe-Ordner einmalig beim ersten Start, Einstellungen mit Abgabe-Ordner | erledigt (`step-15-teachers`) |
-| 16 | Kurse: feste PIN, Vorlage, Ausnahmen, Zeit, Einzelstunde, Kurs-Kacheln, Synchronisation zwischen Lehrkräften, PIN-Schutz | offen |
+| 16 | Kurse: feste PIN, Vorlage, Ausnahmen, Zeit, Einzelstunde, Kurs-Kacheln, Synchronisation zwischen Lehrkräften, PIN-Schutz | erledigt (`step-16-courses`) |
 | 17 | Schüler-Anmeldung: Vorname/Nachname/Klasse, Geräteschlüssel, automatisches Einschreiben in Stunde 1, danach Anklopfen, Live-Anzeige und Farben | offen |
 | 18 | Unterrichtsablauf: „Am Unterricht teilnehmen“, „Unterricht starten – Computer sperren“ (10 s), Freigaben, Alarm mit Ton, Anklopfen nach Neustart | offen |
 | 19 | Sitzplan: Raster, Gang, Einrasten/Tauschen, „Nicht zugeordnet“, Ansicht vorne/hinten, Status pro Platz | offen |

@@ -27,6 +27,7 @@ import log from 'electron-log';
 import config from '../../../../main/config.js';
 import { decryptSessionPayload } from '../../../../../../shared/apiSecret.js';
 import { sessionOps, REMOTE_OPS } from '../../../../main/scripts/sessionOps.js';
+import CourseStore, { CourseStore as CourseStoreClass, sharedCourse } from '../../../../main/scripts/courseStore.js';
 
 const router = Router();
 const MAX_PENDING = 10;
@@ -69,9 +70,35 @@ router.post('/joinstatus', (req, res) => {
     if (!r) return res.send({ status: 'error', code: 'NOT_FOUND' });
     if (r.status === 'approved') {
         session.pendingJoins.delete(req.body.requestId);   // the token is handed out exactly once
-        return res.send({ status: 'approved', token: r.token, servername: req.body.servername });
+        return res.send({ status: 'approved', token: r.token, servername: req.body.servername, course: r.course || null });
     }
     return res.send({ status: r.status });
+});
+
+/**
+ * A teacher of the course starts the same lesson: joins without teacher code and approval.
+ * Body: { servername, courseId, nonce, proof = HMAC(course secret, nonce), name, apiPort, course }
+ */
+const usedNonces = new Map();
+router.post('/coursejoin', (req, res) => {
+    const { servername, courseId, nonce, proof, apiPort, course } = req.body || {};
+    const session = config.examServerList[servername];
+    if (!session || !session.courseId || session.courseId !== courseId) return res.send({ status: 'error', code: 'NOT_FOUND' });
+    const own = CourseStore.get(courseId);
+    const name = cleanName(req.body?.name);
+    if (!own || !name || typeof nonce !== 'string' || nonce.length < 16 || usedNonces.has(nonce)) return res.send({ status: 'error', code: 'NOT_AUTHORIZED' });
+    const expected = CourseStoreClass.proof(own.secret, nonce);
+    if (typeof proof !== 'string' || proof.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(proof), Buffer.from(expected))) {
+        return res.send({ status: 'error', code: 'NOT_AUTHORIZED' });
+    }
+    usedNonces.set(nonce, Date.now());
+    for (const [n, at] of usedNonces) if (Date.now() - at > 10 * 60 * 1000) usedNonces.delete(n);
+    if (course?.secret === own.secret) CourseStore.merge(course);   // the newer course definition wins
+    const ip = String(req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+    const port = Number(apiPort) > 0 && Number(apiPort) < 65536 ? Number(apiPort) : config.serverApiPort;
+    const token = sessionOps.addTeacher({ servername, name, ip, apiPort: port });
+    log.info(`teacher @ coursejoin: "${name}" joined the lesson "${servername}" (course teacher)`);
+    return res.send({ status: 'success', token, course: sharedCourse(CourseStore.get(courseId)) });
 });
 
 /** A co-teacher that already belongs to the session (same token) connects to the new host after a failover. */

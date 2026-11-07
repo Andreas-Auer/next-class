@@ -54,6 +54,17 @@ Findet die Schüler-App die Unterrichtseinheit nicht (manche WLANs blockieren di
    - **Ereignisse** – wer ist beigetreten, getrennt, hat die App beendet, ein gesperrtes Programm gestartet …
 4. **Unterrichtseinheit beenden** gibt alle Geräte frei.
 
+### Kurse (wiederkehrender Unterricht)
+
+- **Meine Kurse → + Neuer Kurs**: Kursname (z. B. `BP-KU`), Unterrichtszeit (Uhrzeit wie 08:00–09:40 oder Dauer),
+  Programm-Vorlage, Internet-Ausnahmen und auf Wunsch ein eigener Abgabe-Ordner.
+- Jeder Kurs hat eine **feste 6-stellige PIN** (unter ⚙ sichtbar, bei Bedarf neu erzeugen).
+- **Unterricht starten** auf der Kurs-Kachel: Vorlage, Ausnahmen und Ende der Stunde („Sperren bis“) sind schon eingestellt.
+- **Teamteaching im Kurs:** Tritt eine Lehrkraft einmal einer Stunde des Kurses bei (Lehrer-Code + Zulassen), gehört
+  sie danach zum Kurs. Startet sie später denselben Kurs, während er schon läuft, ist sie ohne Code direkt dabei.
+  Die Kurseinstellungen werden dabei abgeglichen; der Abgabe-Ordner bleibt pro Lehrkraft.
+- Für einmalige Stunden gibt es die **Einzelstunde** (eigene PIN nur für diese Stunde).
+
 **Empfohlener Ablauf mit Fachsoftware:** Schüler starten zuerst Archicad, Rhino usw. (die Lizenz wird
 online geprüft), danach Internet- und Programmsperre aktivieren.
 

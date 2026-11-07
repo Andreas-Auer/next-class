@@ -28,6 +28,7 @@ import config from '../../../../main/config.js';
 import i18n from '../../../../../src/locales/locales.js';
 import { normalizeStudentClientName } from '../../../../../../shared/normalizeStudentClientName.js';
 import { decryptSessionPayload } from '../../../../../../shared/apiSecret.js';
+import { pinBlocked, recordPinFail } from '../../../../../../shared/pinGuard.js';
 
 const router = Router();
 const { t } = i18n.global;
@@ -77,6 +78,10 @@ router.get('/serverlist', (_req, res) => {
         version: session.serverinfo.version,
         tlsFingerprint: config.tlsCertificateFingerprint,
         apiPort: config.serverApiPort,
+        epoch: session.serverinfo.epoch || 0,
+        courseId: session.serverinfo.courseId || null,
+        courseName: session.serverinfo.courseName || null,
+        teachers: session.serverinfo.teachers || [],
     }));
     res.send({ serverlist, status: 'success' });
 });
@@ -88,10 +93,14 @@ router.post('/registerclient/:servername', async (req, res) => {
     const session = config.examServerList[req.params.servername];
     if (!session) return res.send({ sender: 'server', message: t('control.notfound'), status: 'error' });
 
+    const remoteIp = String(req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+    if (pinBlocked(remoteIp)) return res.send({ sender: 'server', message: t('control.pinblocked'), code: 'PIN_BLOCKED', status: 'error' });
+
     let payload;
     try {
         payload = await decryptSessionPayload(req.body?.packet, String(session.serverinfo.pin || ''));
     } catch {
+        recordPinFail(remoteIp);
         return res.send({ sender: 'server', message: t('control.wrongpin'), code: 'WRONG_PIN', status: 'error' });   // wrong PIN -> decryption fails
     }
 

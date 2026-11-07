@@ -26,6 +26,9 @@ import i18n from '../../../src/locales/locales.js';
 import crypto from 'crypto';
 import AppLockStore from './applockStore.js';
 import TeacherProfile from './teacherProfile.js';
+import CoTeacherClient from './coTeacherClient.js';
+import CourseStore, { CourseStore as CourseStoreClass, sharedCourse, lessonEnd } from './courseStore.js';
+import { sessionNameFor } from '../../../../shared/courseRules.js';
 import { sessionOps } from './sessionOps.js';
 import { resolveEntries, entryFromRunningApp } from '../../../../shared/appCatalog.js';
 
@@ -103,27 +106,10 @@ class IpcHandler {
         ipcMain.on('getconfig', (event) => { event.returnValue = this.copyConfig(); });
         ipcMain.handle('getconfigasync', () => this.copyConfig());
 
-        /** Start a session: { servername } -> { status, servername, pin }. */
-        ipcMain.handle('startExamServer', (_event, payload = {}) => {
-            const servername = String(payload.servername || '').trim().toLowerCase();
-            if (!SESSION_NAME_PATTERN.test(servername)) return { status: 'error', message: t('control.invalidname') };
-            if (this.session(servername)) return { status: 'error', message: t('control.serverexists') };
-            if (this.multicastClient.examServerList.some((s) => s.servername === servername)) {
-                return { status: 'error', message: t('control.serverexistsLAN') };
-            }
+        /** Start a single lesson (no course): { servername } -> { status, servername, pin }. */
+        ipcMain.handle('startExamServer', (_event, payload = {}) => this.startSession(payload.servername));
 
-            const pin = this.config.development ? '1111' : String(Math.floor(Math.random() * 9000) + 1000);
-            const session = new MulticastServer();
-            session.init(servername, pin);
-            session.teacherCode = this.config.development ? '222222' : String(crypto.randomInt(100000, 1000000));
-            session.teacherName = TeacherProfile.name() || t('coteacher.you');
-            session.coTeachers = [];          // { name, token, ip, joinedAt, lastSeen }
-            session.pendingJoins = new Map(); // requestId -> { name, ip, at, status: pending|approved|denied, token? }
-            session.serverstatus = { screenslocked: false, screenshotinterval: DEFAULT_SCREENSHOT_INTERVAL_S, idlethreshold: DEFAULT_IDLE_THRESHOLD_S };
-            this.config.examServerList[servername] = session;
-            log.info(`ipchandler @ startExamServer: session "${servername}" started`);
-            return { status: 'success', servername, pin };
-        });
+        this.initCourses();
 
         /** End a session; students drop their registration (and any screen lock) after the next missed heartbeats. */
         ipcMain.handle('stopserver', (_event, servername) => {
@@ -145,7 +131,7 @@ class IpcHandler {
             const own = new Set(Object.values(this.config.examServerList).map((s) => s.serverinfo.id));
             return this.multicastClient.examServerList
                 .filter((s) => !own.has(s.id))
-                .map((s) => ({ id: s.id, servername: s.servername, serverip: s.serverip }));
+                .map((s) => ({ id: s.id, servername: s.servername, serverip: s.serverip, courseId: s.courseId || null, courseName: s.courseName || null, teachers: s.teachers || [] }));
         });
 
         this.op('sessionEvents', (_event, servername) => this.session(servername)?.events || []);
@@ -160,6 +146,7 @@ class IpcHandler {
                 pin: session.serverinfo.pin,
                 serverip: session.serverinfo.ip,
                 serverstatus: session.serverstatus,
+                course: this.coursePresets(session),
             };
         });
 
@@ -306,6 +293,7 @@ class IpcHandler {
                 })),
                 coTeachers: (session.coTeachers || []).map(({ name, ip, apiPort, token, joinedAt }) => ({ name, ip, apiPort, token, joinedAt })),
                 events: (session.events || []).slice(0, 100),
+                course: this.courseOf(session),
             };
         });
 
@@ -323,9 +311,8 @@ class IpcHandler {
             if (!req || req.status !== 'pending') return { status: 'error' };
             if (approve) {
                 req.status = 'approved';
-                req.token = `teacher-${crypto.randomUUID()}`;
-                session.coTeachers.push({ name: req.name, ip: req.ip, apiPort: req.apiPort, token: req.token, joinedAt: Date.now(), lastSeen: Date.now() });
-                addEvent(session, req.name, 'teacher-joined');
+                req.token = this.addTeacher(session, req);
+                req.course = this.courseOf(session);   // joining a course lesson makes the teacher a teacher of the course
             } else {
                 req.status = 'denied';
             }
@@ -337,6 +324,7 @@ class IpcHandler {
             const session = this.session(servername);
             if (!session) return { status: 'error' };
             session.coTeachers = session.coTeachers.filter((c) => c.name !== name);
+            this.refreshTeacherNames(session);
             return { status: 'success' };
         });
 
@@ -349,10 +337,149 @@ class IpcHandler {
      * Failover: continue a session from a co-teacher's replica on this teacher app.
      * Same session id and PIN (students reconnect with their old tokens), epoch + 1.
      */
+    /** Start a session; with a course its PIN, id and settings are used. */
+    startSession(name, course = null) {
+        const servername = String(name || '').trim().toLowerCase();
+        if (!SESSION_NAME_PATTERN.test(servername)) return { status: 'error', message: t('control.invalidname') };
+        if (this.session(servername)) return { status: 'error', message: t('control.serverexists') };
+        if (this.multicastClient.examServerList.some((s) => s.servername === servername)) {
+            return { status: 'error', message: t('control.serverexistsLAN') };
+        }
+
+        const pin = course ? course.pin : (this.config.development ? '1111' : String(Math.floor(Math.random() * 9000) + 1000));
+        const session = new MulticastServer();
+        session.init(servername, pin, course ? { courseId: course.id, courseName: course.name } : {});
+        session.courseId = course?.id || null;
+        session.startedAt = Date.now();
+        session.teacherCode = this.config.development ? '222222' : String(crypto.randomInt(100000, 1000000));
+        session.teacherName = TeacherProfile.name() || t('coteacher.you');
+        session.coTeachers = [];          // { name, token, ip, joinedAt, lastSeen }
+        session.pendingJoins = new Map(); // requestId -> { name, ip, at, status: pending|approved|denied, token? }
+        session.serverstatus = { screenslocked: false, screenshotinterval: DEFAULT_SCREENSHOT_INTERVAL_S, idlethreshold: DEFAULT_IDLE_THRESHOLD_S };
+        this.config.examServerList[servername] = session;
+        this.refreshTeacherNames(session);
+        log.info(`ipchandler @ startSession: session "${servername}" started${course ? ` (course ${course.name})` : ''}`);
+        return { status: 'success', servername, pin };
+    }
+
+    /** What the dashboard preselects for a course lesson: template, internet exceptions, end of the lesson. */
+    coursePresets(session) {
+        const c = session?.courseId && CourseStore.get(session.courseId);
+        if (!c) return null;
+        return { id: c.id, name: c.name, templateId: c.templateId, netExceptions: c.netExceptions, time: c.time, lessonEnd: lessonEnd(c.time, session.startedAt || Date.now()) };
+    }
+
+    /** Teacher names announced in the beacon (course tiles of students and teachers). */
+    refreshTeacherNames(session) {
+        if (!session?.serverinfo) return;
+        session.serverinfo.teachers = [session.teacherName, ...(session.coTeachers || []).map((c) => c.name)].filter(Boolean).slice(0, 10);
+    }
+
+    /** Add a teacher to the session (approved join or course teacher) and return its token. */
+    addTeacher(session, { name, ip, apiPort }) {
+        // the same teacher again (left and came back, possibly from another address): keep one entry
+        const existing = session.coTeachers.find((c) => c.name === name);
+        if (existing) {
+            Object.assign(existing, { ip, apiPort, lastSeen: Date.now() });
+            return existing.token;
+        }
+        const token = `teacher-${crypto.randomUUID()}`;
+        session.coTeachers.push({ name, ip, apiPort, token, joinedAt: Date.now(), lastSeen: Date.now() });
+        addEvent(session, name, 'teacher-joined');
+        if (session.courseId) {
+            const c = CourseStore.get(session.courseId);
+            if (c && !c.teachers.some((x) => x.name === name)) CourseStore.patch(c.id, { teachers: [...c.teachers, { name }] });
+        }
+        this.refreshTeacherNames(session);
+        return token;
+    }
+
+    /** Course definition of a session (shared part incl. secret) for the other teachers of the lesson. */
+    courseOf(session) {
+        return session?.courseId ? sharedCourse(CourseStore.get(session.courseId)) : null;
+    }
+
+    initCourses() {
+        sessionOps.addTeacher = ({ servername, ...teacher }) => {
+            const session = this.session(servername);
+            return session ? this.addTeacher(session, teacher) : null;
+        };
+        /** Another teacher of the lesson edited the course (newer version wins). */
+        this.op('syncCourse', (_e, { servername, course } = {}) => {
+            const session = this.session(servername);
+            const own = session?.courseId && CourseStore.get(session.courseId);
+            if (!own || course?.id !== own.id || course.secret !== own.secret) return { status: 'error' };
+            CourseStore.merge(course);
+            return { status: 'success' };
+        });
+        ipcMain.handle('course-list', () => CourseStore.list());
+        ipcMain.handle('runningCourseIds', () => Object.values(this.config.examServerList).map((s) => s.courseId).filter(Boolean));
+        ipcMain.handle('course-create', (_e, data) => CourseStore.create(data || {}, TeacherProfile.name()));
+        ipcMain.handle('course-update', (_e, data) => CourseStore.update(data || {}));
+        ipcMain.handle('course-set-local', (_e, { id, patch } = {}) => {
+            const allowed = {};
+            if (patch?.folder !== undefined) allowed.folder = patch.folder ? String(patch.folder) : '';
+            if (patch?.view !== undefined) allowed.view = patch.view === 'back' ? 'back' : 'front';
+            return CourseStore.setLocal(id, allowed);
+        });
+        ipcMain.handle('course-remove-teacher', (_e, { id, name } = {}) => CourseStore.removeTeacher(id, name));
+        ipcMain.handle('course-delete', (_e, id) => CourseStore.remove(id));
+
+        /**
+         * "Start lesson" on a course tile: if another teacher of the course already runs this lesson in the
+         * classroom network, join it (no code, no approval); otherwise start it here.
+         * -> { status: 'started' | 'joined', servername } or an error
+         */
+        ipcMain.handle('course-start', async (_e, { id, extra = [] } = {}) => {
+            const course = CourseStore.get(id);
+            if (!course) return { status: 'error', code: 'NOT_FOUND' };
+            const own = Object.entries(this.config.examServerList).find(([, s]) => s.courseId === id);
+            if (own) return { status: 'started', servername: own[0] };
+            if (CoTeacherClient.remote?.courseId === id) return { status: 'joined', servername: CoTeacherClient.remote.servername };
+            const manual = (Array.isArray(extra) ? extra : []).slice(0, 5).map((x) => {
+                const m = /^([a-z0-9.-]+):(\d+)$/i.exec(String(x?.address || ''));
+                return m ? { serverip: m[1], apiPort: Number(m[2]), servername: String(x.servername || ''), epoch: Number(x.epoch) || 0 } : null;
+            }).filter(Boolean);
+            const running = [...this.multicastClient.examServerList.filter((b) => b.courseId === id), ...manual]
+                .sort((a, b) => (b.epoch || 0) - (a.epoch || 0));
+            for (const beacon of running) {
+                const r = await this.joinCourseLesson(course, beacon);
+                if (r.status === 'joined') return r;
+            }
+            const r = this.startSession(sessionNameFor(course.name), course);
+            if (r.status !== 'success') return r;
+            CourseStore.patch(id, { lessons: (course.lessons || 0) + 1 });
+            return { status: 'started', servername: r.servername };
+        });
+    }
+
+    /** Join the running lesson of a course on another teacher app with the course secret. */
+    async joinCourseLesson(course, beacon) {
+        try {
+            const target = { host: beacon.serverip, port: beacon.apiPort || this.config.serverApiPort };
+            const nonce = crypto.randomUUID();
+            const r = await CoTeacherClient.request(target, '/server/teacher/coursejoin', {
+                body: {
+                    servername: beacon.servername, courseId: course.id, nonce, proof: CourseStoreClass.proof(course.secret, nonce),
+                    name: TeacherProfile.name(), apiPort: this.config.serverApiPort, course: sharedCourse(course),
+                },
+            });
+            if (r?.status !== 'success') return { status: 'error', code: r?.code };
+            if (r.course) CourseStore.merge(r.course, TeacherProfile.name());
+            CoTeacherClient.attach({ ...target, servername: beacon.servername, token: r.token, name: TeacherProfile.name(), courseId: course.id });
+            return { status: 'joined', servername: beacon.servername };
+        } catch (e) {
+            log.warn(`ipchandler @ joinCourseLesson: ${e.message}`);
+            return { status: 'error', code: 'UNREACHABLE' };
+        }
+    }
+
     importSession(replica, ownToken) {
         if (!replica?.servername || this.session(replica.servername)) return false;
         const session = new MulticastServer();
-        session.init(replica.servername, replica.pin, { id: replica.id, epoch: (replica.epoch || 0) + 1 });
+        session.init(replica.servername, replica.pin, { id: replica.id, epoch: (replica.epoch || 0) + 1, courseId: replica.course?.id, courseName: replica.course?.name });
+        session.courseId = replica.course?.id || null;
+        if (replica.course) CourseStore.merge(replica.course, TeacherProfile.name());
         session.teacherCode = replica.teacherCode;
         session.serverstatus = replica.serverstatus || {};
         session.studentList = (replica.studentList || []).map((st) => ({ ...st, timestamp: 0, imageurl: false, screenlock: false, status: {} }));
@@ -362,6 +489,7 @@ class IpcHandler {
         session.pendingJoins = new Map();
         session.events = replica.events || [];
         this.config.examServerList[replica.servername] = session;
+        this.refreshTeacherNames(session);
         addEvent(session, session.teacherName, 'host-failover');
         log.warn(`ipchandler @ importSession: took over "${replica.servername}" (epoch ${session.serverinfo.epoch})`);
         return true;

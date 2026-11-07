@@ -66,6 +66,9 @@ class MulticastServer {
             timestamp: 0,
             id: opts.id || crypto.randomUUID(),
             epoch: opts.epoch || 0,
+            courseId: opts.courseId || null,
+            courseName: opts.courseName || null,
+            teachers: [],
             ip: config.hostip,
             servertoken: `server-${crypto.randomUUID()}`,
             version: config.version
@@ -105,6 +108,9 @@ class MulticastServer {
             tlsFingerprint: config.tlsCertificateFingerprint,
             apiPort: config.serverApiPort,
             epoch: this.serverinfo.epoch || 0,
+            courseId: this.serverinfo.courseId || null,       // lessons of a course: students and teachers of the course recognize it
+            courseName: this.serverinfo.courseName || null,
+            teachers: this.serverinfo.teachers || [],          // names of the teachers in this lesson (course tiles)
             version: config.version
         }
         const preparedMessage = new Buffer.from(JSON.stringify(message))

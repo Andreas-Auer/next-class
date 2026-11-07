@@ -252,6 +252,7 @@ export default {
             hostReachable: true,
             leaving: false,
             teacherCode: '',
+            course: null,
             teachers: [],
             joinDialogOpen: false,
             lastPolicyId: null,
@@ -299,6 +300,7 @@ export default {
             this.$router.push('/')
         })
         await this.loadAppLockData()
+        this.applyCoursePresets()
         this.clockTimer = setInterval(() => { this.now = Date.now() }, 1000)   // the idle counter ticks every second
         await this.fetchStudents()
         this.pollTimer = setInterval(() => this.fetchStudents(), POLL_MS)
@@ -376,7 +378,21 @@ export default {
         // ---- program lock -----------------------------------------------------
         async loadAppLockData() {
             this.applockData = await window.ipcRenderer.invoke('applock-overview')
-            this.netExceptionsText = (this.applockData.netExceptions || []).join('\n')
+            if (!this.netExceptionsText || !this.course) this.netExceptionsText = ((this.course?.netExceptions?.length ? this.course.netExceptions : this.applockData.netExceptions) || []).join('\n')
+        },
+        /** Course lesson: preselect the course's template, internet exceptions and the end of the lesson. */
+        applyCoursePresets() {
+            const c = this.course
+            if (!c) return
+            if (!this.applock.active && c.templateId && this.applockData.templates.some((t) => t.id === c.templateId)) {
+                this.selectedTemplateId = c.templateId
+                this.applyTemplate()
+            }
+            if (!this.netlock.active && c.lessonEnd) {
+                const d = new Date(c.lessonEnd)
+                this.netEndMode = 'time'
+                this.netEndTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+            }
         },
         applyTemplate() {
             const tpl = this.applockData.templates.find((t) => t.id === this.selectedTemplateId)
@@ -482,6 +498,7 @@ export default {
         /** Session state from the host (also changes made by another teacher). */
         applySessionInfo(info, initial = false) {
             this.pin = info.pin
+            if (info.course) this.course = info.course
             this.teacherCode = info.teacherCode
             this.serverip = info.serverip
             this.screenslocked = !!info.serverstatus?.screenslocked

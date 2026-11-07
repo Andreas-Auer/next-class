@@ -101,7 +101,7 @@
                     </div>
                     <div class="input-group mb-1">
                         <span class="input-group-text" style="width: 130px;">{{ $t('student.pin') }}</span>
-                        <input v-model="pincode" type="text" inputmode="numeric" maxlength="4" class="form-control" id="pin" data-e2e="pin">
+                        <input v-model="pincode" type="text" inputmode="numeric" maxlength="6" class="form-control" id="pin" data-e2e="pin">
                     </div>
                     <div v-if="advanced" class="input-group mb-1">
                         <span class="input-group-text" style="width: 130px;">{{ $t('student.ip') }}</span>

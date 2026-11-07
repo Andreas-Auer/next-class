@@ -62,7 +62,8 @@
     "nametaken": "Dieser Name ist bereits verbunden.",
     "invalidname": "Ungültiger Name für die Unterrichtseinheit.",
     "serverexists": "Diese Unterrichtseinheit läuft bereits.",
-    "serverexistsLAN": "Eine andere Lehrkraft verwendet diesen Namen bereits im Netzwerk."
+    "serverexistsLAN": "Eine andere Lehrkraft verwendet diesen Namen bereits im Netzwerk.",
+    "pinblocked": "Zu viele falsche PINs von diesem Gerät. Bitte in 2 Minuten erneut versuchen."
   },
   "applock": {
     "title": "Programmsperre",
@@ -199,5 +200,38 @@
     "language": "Sprache",
     "back": "Zurück",
     "foldermissing": "Der Ordner ist nicht erreichbar (z. B. Netzlaufwerk nicht verbunden)."
+  },
+  "course": {
+    "mycourses": "Meine Kurse",
+    "new": "Neuer Kurs",
+    "settings": "Kurseinstellungen",
+    "name": "Kursname",
+    "nameplaceholder": "z. B. BP-KU",
+    "time": "Unterrichtszeit",
+    "timeclock": "Uhrzeit",
+    "timeduration": "Dauer",
+    "template": "Programm-Vorlage",
+    "notemplate": "Keine (alle Programme erlaubt)",
+    "exceptions": "Internet-Ausnahmen",
+    "exceptionshint": "Lizenzserver und Netzlaufwerke, die bei Internetsperre erreichbar bleiben (Name, IP oder Netz).",
+    "pin": "Kurs-PIN",
+    "newpin": "Neue PIN erzeugen",
+    "teachers": "Lehrkräfte",
+    "teachershint": "Andere Lehrkräfte kommen dazu, wenn sie einmal einer Stunde dieses Kurses beitreten.",
+    "remove": "Entfernen",
+    "delete": "Kurs löschen",
+    "deleteconfirm": "Kurs „{name}“ auf diesem Gerät löschen?",
+    "live": "live",
+    "start": "Unterricht starten",
+    "joinlesson": "Beitreten",
+    "single": "Einzelstunde",
+    "singlehint": "Für eine einmalige Stunde ohne Kurs, z. B. eine Supplierstunde. Die PIN gilt nur für diese Stunde.",
+    "singlestart": "Einzelstunde starten",
+    "errors": {
+      "MISSING_NAME": "Bitte einen Kursnamen eingeben.",
+      "NAME_TAKEN": "Es gibt schon einen Kurs mit diesem Namen.",
+      "NOT_FOUND": "Kurs nicht gefunden.",
+      "START_FAILED": "Der Unterricht konnte nicht gestartet werden."
+    }
   }
 }

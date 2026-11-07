@@ -62,7 +62,8 @@
     "nametaken": "This name is already connected.",
     "invalidname": "Invalid session name.",
     "serverexists": "This session is already running.",
-    "serverexistsLAN": "Another teacher already uses this name on the network."
+    "serverexistsLAN": "Another teacher already uses this name on the network.",
+    "pinblocked": "Too many wrong PINs from this device. Please try again in 2 minutes."
   },
   "applock": {
     "title": "Program lock",
@@ -199,5 +200,38 @@
     "language": "Language",
     "back": "Back",
     "foldermissing": "The folder is not reachable (e.g. network drive not connected)."
+  },
+  "course": {
+    "mycourses": "My courses",
+    "new": "New course",
+    "settings": "Course settings",
+    "name": "Course name",
+    "nameplaceholder": "e.g. BP-KU",
+    "time": "Lesson time",
+    "timeclock": "Clock time",
+    "timeduration": "Duration",
+    "template": "Program template",
+    "notemplate": "None (all programs allowed)",
+    "exceptions": "Internet exceptions",
+    "exceptionshint": "License servers and network drives that stay reachable while the internet is locked.",
+    "pin": "Course PIN",
+    "newpin": "New PIN",
+    "teachers": "Teachers",
+    "teachershint": "Other teachers are added when they join a lesson of this course once.",
+    "remove": "Remove",
+    "delete": "Delete course",
+    "deleteconfirm": "Delete course \"{name}\" on this device?",
+    "live": "live",
+    "start": "Start lesson",
+    "joinlesson": "Join",
+    "single": "Single lesson",
+    "singlehint": "For a one-off lesson without a course. The PIN is valid for this lesson only.",
+    "singlestart": "Start single lesson",
+    "errors": {
+      "MISSING_NAME": "Please enter a course name.",
+      "NAME_TAKEN": "A course with this name already exists.",
+      "NOT_FOUND": "Course not found.",
+      "START_FAILED": "The lesson could not be started."
+    }
   }
 }

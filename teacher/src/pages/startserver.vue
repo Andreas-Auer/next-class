@@ -52,18 +52,41 @@
 
         <!-- Content -->
         <div v-else class="flex-grow-1 p-4 overflow-auto" style="background-color: #f5f5f5;">
-            <h3 class="mb-3">{{ $t('startserver.title') }}</h3>
-            <p class="text-secondary" style="max-width: 640px;">{{ $t('startserver.intro') }}</p>
-
-            <div class="input-group mb-2" style="max-width: 480px;">
-                <span class="input-group-text" style="width: 140px;">{{ $t('startserver.name') }}</span>
-                <input v-model="servername" id="servername" data-e2e="session-name" class="form-control" maxlength="40"
-                       :placeholder="$t('startserver.nameplaceholder')" @keyup.enter="startSession">
+            <!-- courses: recurring lessons with fixed PIN, template and time -->
+            <h3 class="mb-3">{{ $t('course.mycourses') }}</h3>
+            <div class="d-flex flex-wrap gap-3 mb-2" data-e2e="courses">
+                <div v-for="c in courses" :key="c.id" class="coursetile border bg-white rounded p-3 d-flex flex-column" :data-e2e="`course-${c.name}`">
+                    <div class="d-flex align-items-start">
+                        <div class="fs-4 fw-bold text-truncate me-auto" :title="c.name">{{ c.name }}</div>
+                        <button class="btn btn-sm btn-link text-secondary p-0 ms-2" :title="$t('course.settings')" :data-e2e="`course-edit-${c.name}`" @click="editCourse(c)">⚙</button>
+                    </div>
+                    <div class="small text-secondary text-truncate" :title="teacherNames(c)">{{ teacherNames(c) }}</div>
+                    <div class="small text-secondary">{{ timeLabel(c.time) }}</div>
+                    <div v-if="liveCourse(c)" class="small fw-semibold mt-1" style="color: #198754;" :data-e2e="`course-live-${c.name}`">● {{ $t('course.live') }}</div>
+                    <button class="btn btn-sm mt-auto pt-1" :class="liveCourse(c) ? 'btn-outline-success' : 'btn-success'" style="margin-top: 10px !important;"
+                            :data-e2e="`course-start-${c.name}`" :disabled="starting" @click="startCourse(c)">
+                        {{ liveCourse(c) === 'own' ? $t('startserver.open') : liveCourse(c) ? $t('course.joinlesson') : $t('course.start') }}
+                    </button>
+                </div>
+                <button class="coursetile border rounded bg-transparent text-secondary d-flex flex-column align-items-center justify-content-center"
+                        style="border-style: dashed !important;" data-e2e="course-new" @click="editCourse(null)">
+                    <span class="fs-2">+</span>{{ $t('course.new') }}
+                </button>
             </div>
-            <div v-if="servername && !validName" class="text-danger small mb-2">{{ $t('startserver.invalidname') }}</div>
-            <button id="examstart" data-e2e="session-start" class="btn btn-success mt-2" :disabled="!validName || starting" @click="startSession">
-                {{ $t('startserver.start') }}
-            </button>
+
+            <!-- single lesson: one-off, no course -->
+            <div class="mt-5 p-3 border rounded" style="max-width: 640px; background: #fffbea;">
+                <h5 class="mb-1">{{ $t('course.single') }}</h5>
+                <p class="text-secondary small mb-2">{{ $t('course.singlehint') }}</p>
+                <div class="input-group" style="max-width: 480px;">
+                    <input v-model="servername" id="servername" data-e2e="session-name" class="form-control" maxlength="40"
+                           :placeholder="$t('startserver.nameplaceholder')" @keyup.enter="startSession">
+                    <button id="examstart" data-e2e="session-start" class="btn btn-warning" :disabled="!validName || starting" @click="startSession">
+                        {{ $t('course.singlestart') }}
+                    </button>
+                </div>
+                <div v-if="servername && !validName" class="text-danger small mt-1">{{ $t('startserver.invalidname') }}</div>
+            </div>
 
             <div v-if="runningSessions.length" class="mt-5">
                 <h5>{{ $t('startserver.runningsessions') }}</h5>
@@ -80,7 +103,7 @@
                 <h5>{{ $t('coteacher.join') }}</h5>
                 <p class="text-secondary small">{{ $t('coteacher.joinhint') }}</p>
                 <div class="d-flex flex-wrap gap-2 mb-2">
-                    <div v-for="s in [...lanSessions, ...manualSessions]" :key="s.id + s.address" class="border bg-white rounded p-2" style="width: 240px;">
+                    <div v-for="s in [...lanSessions, ...manualSessions].filter((x) => !isOwnCourse(x))" :key="s.id + s.address" class="border bg-white rounded p-2" style="width: 240px;">
                         <strong>{{ s.servername }}</strong> <span class="text-secondary small">{{ s.address }}</span>
                         <button class="btn btn-sm btn-outline-primary w-100 mt-1" :data-e2e="`cojoin-${s.servername}`" @click="coJoin(s.address, s.servername)">{{ $t('coteacher.join') }}</button>
                     </div>
@@ -93,19 +116,29 @@
             </div>
         </div>
     </div>
+    <CourseSettings v-if="courseDialog" :course="courseDialog.course" :templates="templates" :default-folder="profile?.folder || ''"
+                    :own-name="profile?.name || ''" @close="courseClosed" />
 </div>
 </template>
 
+<style scoped>
+.coursetile { width: 230px; min-height: 150px; }
+</style>
+
 <script>
 import FolderField from '../components/FolderField.vue'
+import CourseSettings from '../components/CourseSettings.vue'
 
 const NAME_PATTERN = /^[a-z0-9äöüß][a-z0-9äöüß _.-]{0,39}$/
 
 export default {
-    components: { FolderField },
+    components: { FolderField, CourseSettings },
     data() {
         return {
             profile: null,
+            courses: [],
+            templates: [],
+            courseDialog: null,
             welcomeName: '',
             welcomeFolder: '',
             config: window.config || {},
@@ -113,6 +146,7 @@ export default {
             starting: false,
             hostip: null,
             runningSessions: [],
+            runningCourseIds: [],
             lanSessions: [],
             manualSessions: [],
             coAddress: '',
@@ -137,8 +171,48 @@ export default {
             const r = await window.ipcRenderer.invoke('profile-set', { name: this.welcomeName, folder: this.welcomeFolder })
             if (r.status === 'success') this.profile = r.profile
         },
+        teacherNames(c) {
+            return (c.teachers || []).map((t) => t.name).join(', ')
+        },
+        timeLabel(time) {
+            if (time?.mode === 'clock') return `${time.start} – ${time.end}`
+            const m = time?.minutes || 50
+            return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ''}` : `${m} min`
+        },
+        isOwnCourse(beacon) {
+            return !!beacon.courseId && this.courses.some((c) => c.id === beacon.courseId)
+        },
+        /** 'own' = lesson runs on this app, 'lan' = another teacher of the course runs it, null = not live */
+        liveCourse(c) {
+            if (this.runningCourseIds.includes(c.id)) return 'own'
+            return [...this.lanSessions, ...this.manualSessions].some((s) => s.courseId === c.id) ? 'lan' : null
+        },
+        async editCourse(course) {
+            this.templates = (await window.ipcRenderer.invoke('applock-overview')).templates
+            this.courseDialog = { course: course ? JSON.parse(JSON.stringify(course)) : null }
+        },
+        async courseClosed() {
+            this.courseDialog = null
+            this.courses = await window.ipcRenderer.invoke('course-list')
+        },
+        async startCourse(c) {
+            if (this.starting) return
+            this.starting = true
+            try {
+                // lessons found via "IP der anderen Lehrer-App" (networks without multicast) are tried as well
+                const extra = this.manualSessions.filter((s) => s.courseId === c.id).map((s) => ({ address: s.address, servername: s.servername, epoch: s.epoch }))
+                const r = await window.ipcRenderer.invoke('course-start', { id: c.id, extra: JSON.parse(JSON.stringify(extra)) })
+                if (r.status === 'started') this.openDashboard(r.servername)
+                else if (r.status === 'joined') this.$router.push({ name: 'dashboard', params: { servername: r.servername }, query: { remote: '1' } })
+                else this.$swal.fire({ title: this.$t('general.error'), text: r.message || this.$t('course.errors.START_FAILED'), icon: 'error' })
+            } finally {
+                this.starting = false
+            }
+        },
         async refresh() {
             if (!this.profile?.name) this.profile = await window.ipcRenderer.invoke('profile-get')
+            this.courses = await window.ipcRenderer.invoke('course-list')
+            this.runningCourseIds = await window.ipcRenderer.invoke('runningCourseIds')
             this.hostip = await window.ipcRenderer.invoke('checkhostip')
             const cfg = await window.ipcRenderer.invoke('getconfigasync')
             this.config = cfg
@@ -180,7 +254,7 @@ export default {
         async searchManual() {
             if (!this.coAddress) return
             const r = await window.ipcRenderer.invoke('cojoin-list', this.coAddress)
-            if (r.status === 'success') this.manualSessions = r.serverlist.map((s) => ({ id: s.id, servername: s.servername, address: s.address }))
+            if (r.status === 'success') this.manualSessions = r.serverlist.map((s) => ({ id: s.id, servername: s.servername, address: s.address, courseId: s.courseId, epoch: s.epoch }))
             else this.$swal.fire({ title: this.$t('general.error'), text: r.message, icon: 'error' })
         },
         /** Ask to join as teacher (own name from the profile), then wait for the other teacher's approval. */

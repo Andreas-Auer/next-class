@@ -51,7 +51,10 @@ class CoTeacherClient {
             const r = this.ok(await this.request(this.remote, '/server/teacher/rpc', {
                 token: this.remote.token, body: { servername: this.remote.servername, method: 'replicaState' },
             }));
-            if (r?.status === 'success' && r.result) this.replica = r.result;
+            if (r?.status === 'success' && r.result) {
+                this.replica = r.result;
+                if (r.result.course) await this.hooks.syncCourse?.(r.result.course, (own) => this.pushCourse(own));
+            }
         } catch { /* host unreachable - handled by the failover check */ }
     }
 
@@ -94,6 +97,22 @@ class CoTeacherClient {
         } finally {
             this.failoverBusy = false;
         }
+    }
+
+    /** Our copy of the course is newer (edited during the lesson): send it to the teacher app leading the lesson. */
+    async pushCourse(course) {
+        if (!this.remote) return;
+        try {
+            await this.request(this.remote, '/server/teacher/rpc', { token: this.remote.token, body: { servername: this.remote.servername, method: 'syncCourse', args: { course } } });
+        } catch { /* next round */ }
+    }
+
+    /** Joined a lesson (approval or course secret): forward the dashboard to that teacher app from now on. */
+    attach({ host, port, servername, token, name, courseId = null }) {
+        this.remote = { host, port, servername, token, name, courseId };
+        this.lastOk = Date.now();
+        this.refreshReplica();
+        log.info(`coTeacher: joined "${servername}" on ${host}:${port}`);
     }
 
     /** Parse "10.0.0.5" or "10.0.0.5:22522". */
@@ -168,10 +187,8 @@ class CoTeacherClient {
                 const t = this.target(address);
                 const data = await this.request(t, '/server/teacher/joinstatus', { body: { servername, requestId } });
                 if (data.status === 'approved') {
-                    this.remote = { ...t, servername, token: data.token, name };
-                    this.lastOk = Date.now();
-                    this.refreshReplica();
-                    log.info(`coTeacher: joined "${servername}" on ${t.host}:${t.port} as co-teacher`);
+                    if (data.course) this.hooks.mergeCourse?.(data.course);   // lesson of a course: now a teacher of it
+                    this.attach({ ...t, servername, token: data.token, name, courseId: data.course?.id || null });
                 }
                 return data;
             } catch (e) {
