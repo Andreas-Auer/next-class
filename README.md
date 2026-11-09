@@ -1,5 +1,19 @@
 # Next-Class
 
+## ⬇️ Installation – hier herunterladen
+
+Auf den Dateinamen klicken, der Download startet sofort (Version 0.1.0).
+
+| | Lehrer-App | Schüler-App |
+|---|---|---|
+| **Windows** | [Next-Class-Teacher (.exe)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Teacher_0.1.0.1_20261107_x64.exe) | [Next-Class-Student (.exe)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Student_0.1.0.1_20261107_x64.exe) |
+| **Mac mit Apple-Chip (M1–M4)** | [Next-Class-Teacher (arm64.dmg)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Teacher_0.1.0.1_20261107_arm64.dmg) | [Next-Class-Student (arm64.dmg)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Student_0.1.0.1_20261107_arm64.dmg) |
+| **Mac mit Intel** | [Next-Class-Teacher (x64.dmg)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Teacher_0.1.0.1_20261107_x64.dmg) | [Next-Class-Student (x64.dmg)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Student_0.1.0.1_20261107_x64.dmg) |
+| **Linux** | [Next-Class-Teacher (AppImage)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Teacher_0.1.0.1_20261107_x86_64.AppImage) | [Next-Class-Student (AppImage)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Student_0.1.0.1_20261107_x86_64.AppImage) |
+
+Windows: bei der blauen Warnung „Weitere Informationen“ → „Trotzdem ausführen“.
+Mac: Systemeinstellungen → Datenschutz & Sicherheit → „Trotzdem öffnen“.
+
 **Unterrichtsmodus für den regulären Unterricht – keine Prüfungsumgebung.**
 
 Next-Class hilft Lehrkräften, Ablenkung im Unterricht mit Fachsoftware (z. B. Archicad, Rhino, QGIS, Allplan, Office) zu reduzieren:
