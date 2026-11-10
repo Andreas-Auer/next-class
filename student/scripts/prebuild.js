@@ -53,7 +53,7 @@ fs.writeFileSync(secretPath, secretContent);
 console.log(`✅ Secrets injected (api=${apiSecret === 'NEXT-CLASS' ? 'default' : 'custom'}, connection=${connectionSecret === 'NEXT-CLASS' ? 'default' : 'custom'})`);
 
 // 3. update package.json version fields (used by quasar.config.ts and electron-builder)
-const buildVersion = `${process.env.VERSION || '0.1.0'}.${process.env.BUILD_NUMBER || '1'}`;
+const buildVersion = `${process.env.VERSION || '0.1.1'}.${process.env.BUILD_NUMBER || '1'}`;
 const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
 packageJson.version = process.env.VERSION || packageJson.version;
 packageJson.buildNumber = process.env.BUILD_NUMBER || packageJson.buildNumber;

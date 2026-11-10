@@ -127,8 +127,9 @@ export default defineConfig((ctx: any) => ({
         entitlementsInherit: 'scripts/entitlements.mac.plist',
         category: 'public.app-category.education',
         target: { target: 'dmg', arch: macEbArch },
-        // unsigned builds (decision: no code signing for now) - ad-hoc identity
-        ...(signEnabled ? {} : { identity: null }),
+        // no paid Apple certificate: sign ad-hoc ('-'). Without any signature macOS calls the
+        // downloaded app "damaged"; ad-hoc signed it offers "Open Anyway" in Privacy & Security
+        ...(signEnabled ? {} : { identity: '-' }),
         extendInfo: {
           NSLocalNetworkUsageDescription: 'Next-Class macht die Unterrichtseinheit im Schulnetz für die Schüler-App sichtbar.',
         },

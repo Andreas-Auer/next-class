@@ -11,7 +11,7 @@ Stand: 2026-11-06. Getroffen von Andreas Auer.
 | Koexistenz | Next-Class und Next-Exam müssen parallel installiert sein können: eigene Ports, Multicast-Adresse, App-IDs, MSI-Upgrade-Codes, Ordner und Secrets. |
 | Sprache | Oberfläche Deutsch, Code und Kommentare Englisch. |
 | Plattform-Reihenfolge | Windows → macOS → Linux. Linux mit eingeschränkter Programmsperre unter Wayland. |
-| Code-Signierung | Keine. Windows zeigt einmalig eine SmartScreen-Warnung, macOS verlangt "Trotzdem öffnen" in den Systemeinstellungen. Die Architektur soll eine spätere Signierung ohne Umbau erlauben. |
+| Code-Signierung | Kein gekauftes Zertifikat. macOS-Apps werden ad-hoc signiert (ganz ohne Signatur nennt macOS eine heruntergeladene App „beschädigt“ und bietet kein „Dennoch öffnen“). Windows zeigt einmalig eine SmartScreen-Warnung, macOS verlangt "Trotzdem öffnen" in den Systemeinstellungen. Die Architektur soll eine spätere Signierung ohne Umbau erlauben. |
 | Hilfsdienst | Eigener privilegierter Systemdienst in **Go** (Firewall, Watchdog, Aufräumen). Die Electron-Apps laufen ohne Admin-Rechte. |
 
 ## Sperren

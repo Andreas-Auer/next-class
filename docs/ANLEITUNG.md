@@ -9,15 +9,15 @@ Beide Geräte müssen im **selben Schul-WLAN** sein. Einen Server braucht es nic
 
 ## 1. Herunterladen und installieren
 
-Die Installationsdateien gibt es unter **Releases** im GitHub-Projekt
-(<https://github.com/Andreas-Auer/next-class/releases>), Testversionen unter **Actions → CI → Artifacts**.
+Die Installationsdateien stehen in der Tabelle **ganz oben im README** des GitHub-Projekts
+(<https://github.com/Andreas-Auer/next-class>), dort auch die Schritte bei den Warnungen von Browser und Betriebssystem.
 
 | System | Datei | Hinweis |
 |---|---|---|
-| Windows | `Next-Class-…msi` (Installation) oder `…exe` (ohne Installation) | Die Programme sind nicht signiert: Bei „Der Computer wurde durch Windows geschützt“ auf **Weitere Informationen → Trotzdem ausführen** klicken. |
-| macOS (Apple-Chip M1–M4) | `…arm64.dmg` | DMG öffnen, App in „Programme“ ziehen. Beim ersten Start: **Systemeinstellungen → Datenschutz & Sicherheit → „Trotzdem öffnen“**. |
-| macOS (Intel) | `…x64.dmg` | wie oben |
-| Linux | `…AppImage` | Datei ausführbar machen (`chmod +x`) und starten. |
+| Windows | `Next-Class-Lehrer-Windows.exe` / `Next-Class-Schueler-Windows.exe` (`.msi` für die Verteilung) | Blockiert der Browser den Download, in der Download-Liste **Behalten** wählen. Bei „Der Computer wurde durch Windows geschützt“: **Weitere Informationen → Trotzdem ausführen**. |
+| macOS (Apple-Chip M1–M4) | `…-Mac-Apple-Chip.dmg` | DMG öffnen, App in „Programme“ ziehen. Beim ersten Start die Meldung mit **Fertig** schließen, dann **Systemeinstellungen → Datenschutz & Sicherheit → „Dennoch öffnen“**. |
+| macOS (Intel) | `…-Mac-Intel.dmg` | wie oben |
+| Linux | `…-Linux.AppImage` | Datei ausführbar machen (`chmod +x`) und starten. |
 
 **macOS, Schüler-App:** Für die Live-Ansicht fragt macOS nach der Berechtigung **„Bildschirmaufnahme“**
 (Systemeinstellungen → Datenschutz & Sicherheit → Bildschirmaufnahme → Next-Class Schüler einschalten).

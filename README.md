@@ -2,17 +2,31 @@
 
 ## ⬇️ Installation – hier herunterladen
 
-Auf den Dateinamen klicken, der Download startet sofort (Version 0.1.0).
+Auf den Namen klicken, der Download startet sofort (immer die neueste Version).
 
 | | Lehrer-App | Schüler-App |
 |---|---|---|
-| **Windows** | [Next-Class-Teacher (.exe)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Teacher_0.1.0.1_20261107_x64.exe) | [Next-Class-Student (.exe)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Student_0.1.0.1_20261107_x64.exe) |
-| **Mac mit Apple-Chip (M1–M4)** | [Next-Class-Teacher (arm64.dmg)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Teacher_0.1.0.1_20261107_arm64.dmg) | [Next-Class-Student (arm64.dmg)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Student_0.1.0.1_20261107_arm64.dmg) |
-| **Mac mit Intel** | [Next-Class-Teacher (x64.dmg)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Teacher_0.1.0.1_20261107_x64.dmg) | [Next-Class-Student (x64.dmg)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Student_0.1.0.1_20261107_x64.dmg) |
-| **Linux** | [Next-Class-Teacher (AppImage)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Teacher_0.1.0.1_20261107_x86_64.AppImage) | [Next-Class-Student (AppImage)](https://github.com/Andreas-Auer/next-class/releases/download/v0.1.0/Next-Class-Student_0.1.0.1_20261107_x86_64.AppImage) |
+| **Windows** | [Next-Class-Lehrer-Windows.exe](https://github.com/Andreas-Auer/next-class/releases/latest/download/Next-Class-Lehrer-Windows.exe) | [Next-Class-Schueler-Windows.exe](https://github.com/Andreas-Auer/next-class/releases/latest/download/Next-Class-Schueler-Windows.exe) |
+| **Mac mit Apple-Chip (M1–M4)** | [Next-Class-Lehrer-Mac-Apple-Chip.dmg](https://github.com/Andreas-Auer/next-class/releases/latest/download/Next-Class-Lehrer-Mac-Apple-Chip.dmg) | [Next-Class-Schueler-Mac-Apple-Chip.dmg](https://github.com/Andreas-Auer/next-class/releases/latest/download/Next-Class-Schueler-Mac-Apple-Chip.dmg) |
+| **Mac mit Intel** | [Next-Class-Lehrer-Mac-Intel.dmg](https://github.com/Andreas-Auer/next-class/releases/latest/download/Next-Class-Lehrer-Mac-Intel.dmg) | [Next-Class-Schueler-Mac-Intel.dmg](https://github.com/Andreas-Auer/next-class/releases/latest/download/Next-Class-Schueler-Mac-Intel.dmg) |
+| **Linux** | [Next-Class-Lehrer-Linux.AppImage](https://github.com/Andreas-Auer/next-class/releases/latest/download/Next-Class-Lehrer-Linux.AppImage) | [Next-Class-Schueler-Linux.AppImage](https://github.com/Andreas-Auer/next-class/releases/latest/download/Next-Class-Schueler-Linux.AppImage) |
 
-Windows: bei der blauen Warnung „Weitere Informationen“ → „Trotzdem ausführen“.
-Mac: Systemeinstellungen → Datenschutz & Sicherheit → „Trotzdem öffnen“.
+Die Apps haben (noch) kein kostenpflichtiges Zertifikat. Deshalb warnen Browser und Betriebssystem beim ersten Mal:
+
+**Windows**
+1. Der Browser blockiert den Download (Opera: „Gefährlich“, Edge: „wird nicht häufig heruntergeladen“):
+   im Download-Fenster bei der Datei auf **Behalten** bzw. **… → Behalten → Trotzdem behalten** klicken.
+   Klappt das nicht, die Datei mit Edge oder Chrome laden.
+2. Datei öffnen. Bei der blauen Meldung „Der Computer wurde durch Windows geschützt“:
+   **Weitere Informationen** → **Trotzdem ausführen**.
+
+**Mac**
+1. `.dmg` öffnen und die App in den Ordner **Programme** ziehen.
+2. App öffnen. macOS meldet, dass es die App nicht überprüfen kann → **Fertig** klicken.
+3. **Systemeinstellungen → Datenschutz & Sicherheit**, ganz nach unten scrollen → bei Next-Class **Dennoch öffnen** → mit Passwort bestätigen.
+4. Schüler-App: unter **Datenschutz & Sicherheit → Bildschirm- & Systemaudioaufnahme** erlauben (sonst bleibt das Live-Bild schwarz).
+
+Meldet ein Mac „… ist beschädigt“, ist es eine alte Version (0.1.0): neu herunterladen.
 
 **Unterrichtsmodus für den regulären Unterricht – keine Prüfungsumgebung.**
 

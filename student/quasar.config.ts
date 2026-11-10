@@ -138,8 +138,9 @@ export default defineConfig((ctx: any) => ({
         entitlementsInherit: 'scripts/entitlements.mac.plist',
         category: 'public.app-category.education',
         target: { target: 'dmg', arch: macEbArch },
-        // unsigned builds (decision: no code signing for now) - ad-hoc identity
-        ...(signEnabled ? {} : { identity: null }),
+        // no paid Apple certificate: sign ad-hoc ('-'). Without any signature macOS calls the
+        // downloaded app "damaged"; ad-hoc signed it offers "Open Anyway" in Privacy & Security
+        ...(signEnabled ? {} : { identity: '-' }),
         extendInfo: {
           NSScreenCaptureUsageDescription: 'Next-Class zeigt der Lehrkraft während der Unterrichtseinheit deinen Bildschirm.',
           NSLocalNetworkUsageDescription: 'Next-Class sucht im Schulnetz nach der Lehrer-App.',

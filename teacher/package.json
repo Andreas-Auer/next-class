@@ -1,6 +1,6 @@
 {
   "name": "next-class-teacher",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "main": "dist/main/main.mjs",
   "author": {
@@ -69,5 +69,5 @@
     "vue-sweetalert2": "^5.0.11"
   },
   "buildNumber": "1",
-  "buildVersion": "0.1.0.1"
+  "buildVersion": "0.1.1.1"
 }

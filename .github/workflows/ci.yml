@@ -235,12 +235,25 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      - name: Give the installers fixed names
+        # the README links to releases/latest/download/<fixed name>, so its links never change
+        run: |
+          mkdir release
+          for app in Teacher:Lehrer Student:Schueler; do
+            src=${app%%:*}; dst=${app##*:}
+            mv dist/Next-Class-${src}_*_x64.exe          release/Next-Class-${dst}-Windows.exe
+            mv dist/Next-Class-${src}_*_x64.msi          release/Next-Class-${dst}-Windows.msi
+            mv dist/Next-Class-${src}_*_arm64.dmg        release/Next-Class-${dst}-Mac-Apple-Chip.dmg
+            mv dist/Next-Class-${src}_*_x64.dmg          release/Next-Class-${dst}-Mac-Intel.dmg
+            mv dist/Next-Class-${src}_*_x86_64.AppImage  release/Next-Class-${dst}-Linux.AppImage
+          done
+          ls -la release
       - name: Create release with all installers
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" dist/* \
+          gh release create "${GITHUB_REF_NAME}" release/* \
             --repo "${GITHUB_REPOSITORY}" \
             --title "Next-Class ${GITHUB_REF_NAME}" \
-            --notes "Unsignierte Testversion. Installationshinweise: docs/ANLEITUNG.md" \
-            --prerelease
+            --notes "Installation: siehe Tabelle ganz oben im README (https://github.com/${GITHUB_REPOSITORY}#readme)." \
+            --latest
